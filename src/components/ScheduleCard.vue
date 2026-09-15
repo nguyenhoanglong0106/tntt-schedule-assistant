@@ -1,0 +1,8 @@
+<script setup lang="ts">
+import type { Branch, Schedule } from '@/types'
+import BranchBadge from './BranchBadge.vue'
+defineProps<{schedule:Schedule;branch?:Branch;readonly?:boolean}>()
+defineEmits<{edit:[Schedule];complete:[Schedule]}>()
+</script>
+<template><article class="schedule-card" :style="{'--branch':branch?.colorHex||'#64748b'}"><div class="accent"></div><div class="card-main"><div class="card-top"><strong>{{schedule.taskCode==='READING'?'📖':schedule.taskCode==='ICE_CREAM'?'🍦':schedule.taskCode==='OFFICE_DUTY'?'🏢':'🧹'}} {{schedule.taskName}}</strong><BranchBadge :branch="branch"/></div><div class="meta"><span v-if="schedule.startTime">🕒 {{schedule.startTime}}<template v-if="schedule.endTime">–{{schedule.endTime}}</template></span><span>👤 {{schedule.assignees.map(a=>a.label).join(', ')||'Chưa phân công'}}</span></div><div class="actions" v-if="!readonly"><button class="ghost" @click="$emit('edit',schedule)">Sửa</button><button v-if="schedule.status!=='COMPLETED'" class="success" @click="$emit('complete',schedule)">✓ Hoàn thành</button></div></div></article></template>
+<style scoped>.schedule-card{display:flex;background:white;border:1px solid #e8edf4;border-radius:18px;overflow:hidden;box-shadow:0 5px 18px rgba(15,23,42,.05)}.accent{width:5px;background:var(--branch)}.card-main{padding:13px 14px;flex:1}.card-top{display:flex;gap:8px;align-items:center;justify-content:space-between}.meta{display:flex;flex-wrap:wrap;gap:8px 16px;color:#64748b;font-size:.87rem;margin-top:9px}.actions{display:flex;justify-content:flex-end;gap:8px;margin-top:10px}button{border:0;border-radius:10px;padding:8px 11px;font-weight:700}.ghost{background:#f1f5f9}.success{background:#dcfce7;color:#166534}</style>

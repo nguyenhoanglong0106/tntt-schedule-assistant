@@ -1,0 +1,14 @@
+{
+  "name": "TNTT Schedule Assistant",
+  "short_name": "TNTT Lịch",
+  "description": "Trợ lý lịch phân công Thiếu Nhi Thánh Thể",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#1d4ed8",
+  "lang": "vi",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

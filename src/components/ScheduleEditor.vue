@@ -5,7 +5,8 @@ import type { AppData, Assignee, Profile, Schedule, TaskCode } from '@/types'
 import { readingBranchForDate, todayISO } from '@/utils/date'
 import { normalizeVi } from '@/utils/normalize'
 
-const props=defineProps<{data:AppData;profile:Profile;existing?:Schedule|null}>()
+const props=defineProps<{data:AppData;profile:Profile;existing?:Schedule|null;hideReading?:boolean}>()
+const taskChoices=computed(()=>props.hideReading?props.data.taskTypes.filter(t=>t.code!=='READING'):props.data.taskTypes)
 const emit=defineEmits<{save:[Omit<Schedule,'id'> & {id?:string}];cancel:[]}>()
 const form=reactive({taskCode:'CLEANING' as TaskCode,branchId:props.profile.branchId??props.data.branches[0]?.id??'',date:todayISO(),startTime:'06:00',endTime:'07:00',selected:[] as string[],reminders:[180] as number[],search:''})
 const task=computed(()=>props.data.taskTypes.find(t=>t.code===form.taskCode)!)
@@ -31,7 +32,7 @@ function submit(){
 }
 </script>
 <template><div class="overlay" @click.self="$emit('cancel')"><section class="editor"><div class="handle"></div><div class="head"><div><small>{{existing?'CHỈNH SỬA':'TẠO LỊCH NHANH'}}</small><h3>{{existing?'Cập nhật công việc':'Thêm công việc'}}</h3></div><button class="x" @click="$emit('cancel')">✕</button></div>
-<label>Công việc</label><div class="task-grid"><button v-for="t in data.taskTypes" :key="t.id" :class="{selected:form.taskCode===t.code}" @click="form.taskCode=t.code"><span>{{t.icon}}</span>{{t.name}}</button></div>
+<label>Công việc</label><div class="task-grid"><button v-for="t in taskChoices" :key="t.id" :class="{selected:form.taskCode===t.code}" @click="form.taskCode=t.code"><span>{{t.icon}}</span>{{t.name}}</button></div>
 <label v-if="profile.role==='SUPER_ADMIN'&&form.taskCode!=='READING'">Ngành</label><div v-if="profile.role==='SUPER_ADMIN'&&form.taskCode!=='READING'" class="chips"><button v-for="b in data.branches" :key="b.id" :class="{selected:form.branchId===b.id}" :style="{'--c':b.colorHex}" @click="form.branchId=b.id">{{b.name}}</button></div>
 <div v-if="form.taskCode==='READING'" class="info">📖 Ngành đọc sách tuần này: <strong>{{readingBranch?.name||'Chưa cấu hình'}}</strong></div>
 <div class="two"><div><label>Ngày</label><input v-model="form.date" type="date" /></div><div><label>Bắt đầu</label><input v-model="form.startTime" type="time" /></div></div><div><label>Kết thúc <span>(không bắt buộc)</span></label><input v-model="form.endTime" type="time" /></div>

@@ -4,6 +4,7 @@ import HomeView from '@/views/HomeView.vue'
 const router=createRouter({history:createWebHistory(),routes:[
  {path:'/',component:HomeView},
  {path:'/calendar',component:()=>import('@/views/CalendarView.vue')},
+ {path:'/tasks',component:()=>import('@/views/TasksView.vue')},
  {path:'/ai',component:()=>import('@/views/AIView.vue')},
  {path:'/reminders',component:()=>import('@/views/RemindersView.vue')},
  {path:'/profile',component:()=>import('@/views/ProfileView.vue')},

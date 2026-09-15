@@ -28,7 +28,7 @@ Tạo Supabase Project
 → npx supabase login
 → npx supabase link
 → npx supabase db push
-→ set OPENAI_API_KEY
+→ set GEMINI_API_KEY
 → deploy 4 Edge Functions
 → chạy app
 → tạo Super Admin đầu tiên

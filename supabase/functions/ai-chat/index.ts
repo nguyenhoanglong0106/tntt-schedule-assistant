@@ -2,8 +2,7 @@ import { corsHeaders, json } from '../_shared/cors.ts'
 import { requireUser } from '../_shared/clients.ts'
 
 function extractText(response:any):string{
-  if(typeof response.output_text==='string')return response.output_text
-  for(const item of response.output??[])for(const c of item.content??[])if(c.type==='output_text'&&c.text)return c.text
+  for(const cand of response.candidates??[])for(const p of cand.content?.parts??[])if(typeof p.text==='string')return p.text
   return ''
 }
 function stripJson(text:string){return text.trim().replace(/^```json\s*/i,'').replace(/```$/,'').trim()}
@@ -39,9 +38,9 @@ DELETE_SCHEDULE: {"op":"DELETE_SCHEDULE","schedule_id":"uuid"}\n
 MARK_COMPLETED: {"op":"MARK_COMPLETED","schedule_id":"uuid"}\n
 UPDATE_READING_ROTATION chỉ SUPER_ADMIN: {"op":"UPDATE_READING_ROTATION","start_date":"YYYY-MM-DD","start_branch_id":"uuid"}.\n
 Khi user hỏi lịch, trả answer từ schedules/context. Khi thay đổi nhiều mục, gom vào một action để user xác nhận một lần.`
-    const apiKey=Deno.env.get('OPENAI_API_KEY');if(!apiKey)return json({kind:'clarify',text:'AI chưa được cấu hình OPENAI_API_KEY trên Supabase Edge Functions.'})
-    const model=Deno.env.get('OPENAI_MODEL')||'gpt-5.6-luna'
-    const ai=await fetch('https://api.openai.com/v1/responses',{method:'POST',headers:{Authorization:`Bearer ${apiKey}`,'Content-Type':'application/json'},body:JSON.stringify({model,instructions,input:`CONTEXT:\n${JSON.stringify(context)}\n\nUSER:\n${message}`})})
+    const apiKey=Deno.env.get('GEMINI_API_KEY');if(!apiKey)return json({kind:'clarify',text:'AI chưa được cấu hình GEMINI_API_KEY trên Supabase Edge Functions.'})
+    const model=Deno.env.get('GEMINI_MODEL')||'gemini-2.5-flash'
+    const ai=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({systemInstruction:{parts:[{text:instructions}]},contents:[{role:'user',parts:[{text:`CONTEXT:\n${JSON.stringify(context)}\n\nUSER:\n${message}`}]}],generationConfig:{responseMimeType:'application/json'}})})
     if(!ai.ok)throw new Error(`AI API ${ai.status}: ${await ai.text()}`)
     const raw=await ai.json();const text=extractText(raw);const parsed=JSON.parse(stripJson(text))
     if(parsed.kind==='answer'||parsed.kind==='clarify')return json(parsed)

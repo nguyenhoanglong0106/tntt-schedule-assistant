@@ -140,8 +140,8 @@ Sau khi đã có Super Admin, tạo 5 Admin Ngành tại:
 ## 1. Set secrets
 
 ```bash
-npx supabase secrets set OPENAI_API_KEY=YOUR_OPENAI_API_KEY
-npx supabase secrets set OPENAI_MODEL=gpt-5.6-luna
+npx supabase secrets set GEMINI_API_KEY=YOUR_GEMINI_API_KEY
+npx supabase secrets set GEMINI_MODEL=gemini-2.5-flash
 ```
 
 Tạo secret cho reminder cron:
@@ -315,7 +315,7 @@ npx supabase functions deploy process-reminders --no-verify-jwt
 ## Lưu ý bảo mật
 
 - Không commit `.env.local`.
-- Không đặt `OPENAI_API_KEY` ở Vue/Vite env.
+- Không đặt `GEMINI_API_KEY` ở Vue/Vite env.
 - Không đặt Service Role key ở frontend.
 - Quyền thật được enforce bằng RLS và RPC phía PostgreSQL.
 - AI chỉ tạo structured operations, không được chạy SQL tùy ý.

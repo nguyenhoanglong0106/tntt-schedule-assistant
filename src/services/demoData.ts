@@ -24,7 +24,8 @@ const members: Member[] = [
 export function makeDemoData(): AppData {
   const base = startOfWeek(todayISO())
   const schedule = (s: Partial<Schedule> & Pick<Schedule,'id'|'taskTypeId'|'taskCode'|'taskName'|'branchId'|'date'>): Schedule => ({
-    startTime:null,endTime:null,status:'ASSIGNED',notes:null,assignees:[],reminderOffsets:[180],...s
+    startTime:null,endTime:null,status:'ASSIGNED',notes:null,assignees:[],reminderOffsets:[180],
+    taskIcon:DEMO_TASK_TYPES.find(t=>t.code===s.taskCode)?.icon??'📌',...s
   })
   const schedules: Schedule[] = [
     schedule({id:'s1',taskTypeId:'task-reading',taskCode:'READING',taskName:'Đọc sách',branchId:'branch-thieu',date:nextWeekdayInWeek(base,1),startTime:'18:00',assignees:[{type:'MEMBER',memberId:'m-minh-thu',label:'Minh Thư'}]}),
@@ -35,5 +36,5 @@ export function makeDemoData(): AppData {
     schedule({id:'s6',taskTypeId:'task-icecream',taskCode:'ICE_CREAM',taskName:'Bán kem',branchId:'branch-thieu',date:addDays(base,6),startTime:'07:00',endTime:'08:00',assignees:[{type:'CLASS',classId:'class-thieu-2',label:'Thiếu 2'}],reminderOffsets:[720,30]}),
     schedule({id:'s7',taskTypeId:'task-office',taskCode:'OFFICE_DUTY',taskName:'Trực văn phòng',branchId:'branch-hiep',date:addDays(base,6),startTime:'07:30',endTime:'09:00',assignees:[{type:'MEMBER',memberId:'m-bao-hiep',label:'Bảo'}]}),
   ]
-  return { branches:DEMO_BRANCHES, taskTypes:DEMO_TASK_TYPES, members, classes, schedules, rotation:{startDate:base,startBranchId:'branch-thieu'}, notifications:[] }
+  return { branches:DEMO_BRANCHES, taskTypes:DEMO_TASK_TYPES, members, classes, schedules, rotation:{startDate:base,startBranchId:'branch-thieu'}, notifications:[], taskTypeBranchTimes:[] }
 }

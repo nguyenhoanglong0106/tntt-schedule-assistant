@@ -72,6 +72,6 @@ export async function confirmAiAction(id:string,data:AppData):Promise<{message:s
   if(isSupabaseConfigured&&supabase){const{data:result,error}=await supabase.functions.invoke('ai-confirm-action',{body:{pending_action_id:id}});if(error)throw error;return result}
   const action=await getPendingAction(id);if(!action||action.status!=='PENDING')throw new Error('Yêu cầu xác nhận không còn hiệu lực.')
   const drafts=(action.payload.drafts??[]) as Draft[]
-  for(const d of drafts){const task=taskMeta(d.taskCode,data);const assignees=d.assigneeIds.map(memberId=>({type:'MEMBER' as const,memberId,label:data.members.find(m=>m.id===memberId)?.fullName??'Không rõ'}));await saveSchedule({taskTypeId:task.id,taskCode:task.code,taskName:task.name,branchId:d.branchId,date:d.date,startTime:d.startTime,endTime:d.endTime,status:assignees.length?'ASSIGNED':'UNASSIGNED',notes:null,assignees,reminderOffsets:[180]})}
+  for(const d of drafts){const task=taskMeta(d.taskCode,data);const assignees=d.assigneeIds.map(memberId=>({type:'MEMBER' as const,memberId,label:data.members.find(m=>m.id===memberId)?.fullName??'Không rõ'}));await saveSchedule({taskTypeId:task.id,taskCode:task.code,taskName:task.name,taskIcon:task.icon,branchId:d.branchId,date:d.date,startTime:d.startTime,endTime:d.endTime,status:assignees.length?'ASSIGNED':'UNASSIGNED',notes:null,assignees,reminderOffsets:[180]})}
   return{message:`Đã lưu ${drafts.length} phân công.`}
 }

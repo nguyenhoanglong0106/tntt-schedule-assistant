@@ -36,3 +36,12 @@ export function nextWeekdayInWeek(weekDate: string, jsWeekday: number): string {
   const offset = jsWeekday === 0 ? 6 : jsWeekday - 1
   return addDays(s, offset)
 }
+
+export function addMonths(date: string, months: number): string { const d = parseISO(date); d.setDate(1); d.setMonth(d.getMonth()+months); return toISO(d) }
+export function monthLabel(date: string): string { const d = parseISO(date); return new Intl.DateTimeFormat('vi-VN', { month:'long', year:'numeric', timeZone: TZ }).format(d) }
+export function datesOfMonth(anchor: string): { date:string; inMonth:boolean }[] {
+  const d = parseISO(anchor); const year = d.getFullYear(); const month = d.getMonth()
+  const first = toISO(new Date(year, month, 1))
+  const gridStart = startOfWeek(first)
+  return Array.from({length:42}, (_,i)=>{ const date = addDays(gridStart,i); return { date, inMonth: parseISO(date).getMonth()===month } })
+}

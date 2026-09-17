@@ -58,3 +58,16 @@ export async function isPushEnabled(): Promise<boolean> {
   }
 }
 
+export async function unregisterPushSubscription(): Promise<boolean> {
+  try {
+    const reg = await navigator.serviceWorker.ready
+    const sub = await reg.pushManager.getSubscription()
+    if (sub) {
+      await sub.unsubscribe()
+    }
+    return true
+  } catch (_) {
+    return false
+  }
+}
+

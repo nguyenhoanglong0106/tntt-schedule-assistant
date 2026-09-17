@@ -40,12 +40,12 @@ UPDATE_READING_ROTATION chỉ SUPER_ADMIN: {"op":"UPDATE_READING_ROTATION","star
 Khi user hỏi lịch, trả answer từ schedules/context. Khi thay đổi nhiều mục, gom vào một action để user xác nhận một lần.`
     const apiKey=Deno.env.get('GEMINI_API_KEY')
     if(!apiKey)return json({kind:'clarify',text:'AI chưa được cấu hình. Vui lòng liên hệ admin để thiết lập GEMINI_API_KEY.'})
-    const model=Deno.env.get('GEMINI_MODEL')||'gemini-2.5-flash'
+    const model=Deno.env.get('GEMINI_MODEL')||'gemini-3.1-flash-lite'
     let aiResponse:Response
     try{
-      aiResponse=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,{
+      aiResponse=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,{
         method:'POST',
-        headers:{'Content-Type':'application/json'},
+        headers:{'Content-Type':'application/json','x-goog-api-key':apiKey},
         body:JSON.stringify({
           systemInstruction:{parts:[{text:instructions}]},
           contents:[{role:'user',parts:[{text:`CONTEXT:\n${JSON.stringify(context)}\n\nUSER:\n${message}`}]}],

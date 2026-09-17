@@ -26,7 +26,7 @@ export async function registerPushSubscription(): Promise<boolean> {
     const existing = await reg.pushManager.getSubscription()
     const sub = existing ?? await reg.pushManager.subscribe({
       userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+      applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY) as any
     })
 
     const { endpoint, keys } = sub.toJSON() as { endpoint: string; keys: { p256dh: string; auth: string } }

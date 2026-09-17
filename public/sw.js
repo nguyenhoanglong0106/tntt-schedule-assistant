@@ -6,7 +6,12 @@ self.addEventListener('install', event => {
   self.skipWaiting()
 })
 
-self.addEventListener('activate', event => event.waitUntil(self.clients.claim()))
+self.addEventListener('activate', event => {
+  event.waitUntil(self.clients.claim())
+  self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clients => {
+    clients.forEach(c => c.postMessage({ type: 'UPDATE_AVAILABLE' }))
+  })
+})
 
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return

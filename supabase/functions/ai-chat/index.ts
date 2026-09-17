@@ -38,13 +38,27 @@ DELETE_SCHEDULE: {"op":"DELETE_SCHEDULE","schedule_id":"uuid"}\n
 MARK_COMPLETED: {"op":"MARK_COMPLETED","schedule_id":"uuid"}\n
 UPDATE_READING_ROTATION chỉ SUPER_ADMIN: {"op":"UPDATE_READING_ROTATION","start_date":"YYYY-MM-DD","start_branch_id":"uuid"}.\n
 Khi user hỏi lịch, trả answer từ schedules/context. Khi thay đổi nhiều mục, gom vào một action để user xác nhận một lần.`
-    const apiKey=Deno.env.get('GEMINI_API_KEY');if(!apiKey)return json({kind:'clarify',text:'AI chưa được cấu hình. Vui lòng liên hệ admin để thiết lập GEMINI_API_KEY.'})
+    const apiKey=Deno.env.get('GEMINI_API_KEY')
+    if(!apiKey)return json({kind:'clarify',text:'AI chưa được cấu hình. Vui lòng liên hệ admin để thiết lập GEMINI_API_KEY.'})
     const model=Deno.env.get('GEMINI_MODEL')||'gemini-2.5-flash'
-    let ai;try{ai=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({systemInstruction:{parts:[{text:instructions}]},contents:[{role:'user',parts:[{text:`CONTEXT:\n${JSON.stringify(context)}\n\nUSER:\n${message}`}]}],generationConfig:{responseMimeType:'application/json'}})}})catch(e:any){return json({kind:'clarify',text:'Lỗi kết nối AI. Vui lòng thử lại sau.'})}
-    if(!ai.ok){const errBody=await ai.text();return json({kind:'clarify',text:`AI API lỗi (${ai.status}). Vui lòng thử lại sau.`})}
-    const raw=await ai.json();const text=extractText(raw);if(!text)return json({kind:'clarify',text:'AI không trả lời được. Hãy nói rõ hơn.'})
-    let parsed;try{parsed=JSON.parse(stripJson(text))}catch{return json({kind:'clarify',text:'AI trả về định dạng không hợp lệ. Vui lòng thử lại.'})
-    }
+    let aiResponse:Response
+    try{
+      aiResponse=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({
+          systemInstruction:{parts:[{text:instructions}]},
+          contents:[{role:'user',parts:[{text:`CONTEXT:\n${JSON.stringify(context)}\n\nUSER:\n${message}`}]}],
+          generationConfig:{responseMimeType:'application/json'}
+        })
+      })
+    }catch{return json({kind:'clarify',text:'Lỗi kết nối AI. Vui lòng thử lại sau.'})}
+    if(!aiResponse.ok){return json({kind:'clarify',text:`AI API lỗi (${aiResponse.status}). Vui lòng thử lại sau.`})}
+    const raw=await aiResponse.json()
+    const text=extractText(raw)
+    if(!text)return json({kind:'clarify',text:'AI không trả lời được. Hãy nói rõ hơn.'})
+    let parsed
+    try{parsed=JSON.parse(stripJson(text))}catch{return json({kind:'clarify',text:'AI trả về định dạng không hợp lệ. Vui lòng thử lại.'})}
     if(parsed.kind==='answer'||parsed.kind==='clarify')return json(parsed)
     if(parsed.kind!=='action'||!Array.isArray(parsed.operations)||!parsed.operations.length)return json({kind:'clarify',text:'Tôi chưa tạo được thao tác an toàn. Vui lòng nói rõ hơn.'})
     const profile=profileR.data;const branchIds=new Set((branchesR.data??[]).map((x:any)=>x.id));const taskIds=new Set((tasksR.data??[]).map((x:any)=>x.id));const memberMap=new Map((membersR.data??[]).map((x:any)=>[x.id,x]));const classMap=new Map((classesR.data??[]).map((x:any)=>[x.id,x]));

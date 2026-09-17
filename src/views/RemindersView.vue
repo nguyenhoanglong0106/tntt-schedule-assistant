@@ -7,24 +7,27 @@ import { markNotificationRead } from '@/services/dataService'
 import { todayISO } from '@/utils/date'
 import { isPushEnabled, registerPushSubscription, unregisterPushSubscription } from '@/utils/pushNotifications'
 import { isSupabaseConfigured } from '@/lib/supabase'
+const pushEnabled=ref(false);const pushBusy=ref(false);const pushSupported=ref(('PushManager' in window)&&isSupabaseConfigured);const pushError=ref('')
 const {state,refresh}=useApp();onMounted(async()=>{await refresh();pushEnabled.value=await isPushEnabled()})
-const upcoming=computed(()=>state.data?.schedules.filter(s=>s.date>=todayISO()&&s.status!=='COMPLETED'&&s.status!=='CANCELLED').sort((a,b)=>(a.date+(a.startTime||'')).localeCompare(b.date+(b.startTime||''))).slice(0,30)??[])
-const unread=computed(()=>state.data?.notifications.filter(n=>!n.readAt)??[])
-const label=(m:number)=>m===1440?'1 ngày':m===720?'12 giờ':m===180?'3 giờ':m===60?'1 giờ':`${m} phút`
-async function read(id:string){await markNotificationRead(id);await refresh()}
-const pushEnabled=ref(false);const pushBusy=ref(false);const pushSupported=('PushManager' in window)&&isSupabaseConfigured
 async function togglePush(){
-  pushBusy.value=true
+  pushBusy.value=true;pushError.value=''
   if(!pushEnabled.value){
     const ok=await registerPushSubscription()
     pushEnabled.value=ok
-    if(!ok)alert('Không thể bật thông báo. Hãy kiểm tra quyền trình duyệt.')
+    if(!ok){
+      pushError.value='Không thể bật. Kiểm tra console (F12) để biết chi tiết lỗi.'
+      alert(pushError.value)
+    }
   } else {
     await unregisterPushSubscription()
     pushEnabled.value=false
   }
   pushBusy.value=false
 }
+const upcoming=computed(()=>state.data?.schedules.filter(s=>s.date>=todayISO()&&s.status!=='COMPLETED'&&s.status!=='CANCELLED').sort((a,b)=>(a.date+(a.startTime||'')).localeCompare(b.date+(a.startTime||''))).slice(0,30)??[])
+const unread=computed(()=>state.data?.notifications.filter(n=>!n.readAt)??[])
+const label=(m:number)=>m===1440?'1 ngày':m===720?'12 giờ':m===180?'3 giờ':m===60?'1 giờ':`${m} phút`
+async function read(id:string){await markNotificationRead(id);await refresh()}
 </script>
 <template><div class="page" v-if="state.data"><div class="eyebrow">NHẮC VIỆC</div><h1>Thông báo 🔔</h1>
 <div class="push-card" v-if="pushSupported">

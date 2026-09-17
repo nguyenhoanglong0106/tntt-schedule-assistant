@@ -16,11 +16,11 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
 
 export async function registerPushSubscription(): Promise<boolean> {
   try {
-    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return false
-    if (!VAPID_PUBLIC_KEY) return false
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) { console.warn('[push] no serviceWorker or PushManager'); return false }
+    if (!VAPID_PUBLIC_KEY) { console.warn('[push] no VAPID key'); return false }
 
     const permission = await Notification.requestPermission()
-    if (permission !== 'granted') return false
+    if (permission !== 'granted') { console.warn('[push] permission:', permission); return false }
 
     const reg = await navigator.serviceWorker.ready
     const existing = await reg.pushManager.getSubscription()
@@ -30,23 +30,22 @@ export async function registerPushSubscription(): Promise<boolean> {
     })
 
     const { endpoint, keys } = sub.toJSON() as { endpoint: string; keys: { p256dh: string; auth: string } }
-    if (!keys?.p256dh || !keys?.auth) return false
+    if (!keys?.p256dh || !keys?.auth) { console.warn('[push] missing keys'); return false }
 
-    // Save via Edge Function (uses user JWT automatically)
     const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/save-push-subscription`
     const { data: { session } } = await supabase!.auth.getSession()
+    if (!session) { console.warn('[push] no session'); return false }
     const res = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${session?.access_token ?? ''}`
+        'Authorization': `Bearer ${session.access_token ?? ''}`
       },
       body: JSON.stringify({ endpoint, p256dh: keys.p256dh, auth: keys.auth })
     })
-    return res.ok
-  } catch (_) {
-    return false
-  }
+    if (!res.ok) { console.warn('[push] save failed:', res.status); return false }
+    return true
+  } catch (e) { console.error('[push]', e); return false }
 }
 //comnet
 export async function isPushEnabled(): Promise<boolean> {

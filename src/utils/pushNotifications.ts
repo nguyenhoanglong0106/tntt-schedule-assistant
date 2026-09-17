@@ -48,7 +48,7 @@ export async function registerPushSubscription(): Promise<boolean> {
     return false
   }
 }
-
+//comnet
 export async function isPushEnabled(): Promise<boolean> {
   try {
     if (!('PushManager' in window)) return false

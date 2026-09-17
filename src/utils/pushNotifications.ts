@@ -9,9 +9,7 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4)
   const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/')
   const raw = atob(base64)
-  const array = new Uint8Array(raw.length)
-  for (let i = 0; i < raw.length; i++) array[i] = raw.charCodeAt(i)
-  return array
+  return Uint8Array.from(raw, c => c.charCodeAt(0))
 }
 
 export async function registerPushSubscription(): Promise<boolean> {
@@ -26,7 +24,7 @@ export async function registerPushSubscription(): Promise<boolean> {
     const existing = await reg.pushManager.getSubscription()
     const sub = existing ?? await reg.pushManager.subscribe({
       userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY) as any
+      applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
     })
 
     const { endpoint, keys } = sub.toJSON() as { endpoint: string; keys: { p256dh: string; auth: string } }
@@ -55,19 +53,6 @@ export async function isPushEnabled(): Promise<boolean> {
     const reg = await navigator.serviceWorker.ready
     const sub = await reg.pushManager.getSubscription()
     return !!sub && Notification.permission === 'granted'
-  } catch (_) {
-    return false
-  }
-}
-
-export async function unregisterPushSubscription(): Promise<boolean> {
-  try {
-    const reg = await navigator.serviceWorker.ready
-    const sub = await reg.pushManager.getSubscription()
-    if (sub) {
-      await sub.unsubscribe()
-    }
-    return true
   } catch (_) {
     return false
   }

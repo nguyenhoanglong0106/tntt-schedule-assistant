@@ -1,5 +1,7 @@
+const CACHE = 'tntt-shell-v1'
 const CACHE = 'tntt-shell-v2'
 const SHELL = ['/', '/manifest.webmanifest']
+self.addEventListener('install', event => event.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL))))
 
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)))

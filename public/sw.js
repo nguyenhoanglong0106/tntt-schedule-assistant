@@ -1,7 +1,5 @@
-const CACHE = 'tntt-shell-v1'
-const CACHE = 'tntt-shell-v2'
+const CACHE = 'tntt-shell-v3'
 const SHELL = ['/', '/manifest.webmanifest']
-self.addEventListener('install', event => event.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL))))
 
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)))
@@ -13,6 +11,10 @@ self.addEventListener('activate', event => event.waitUntil(self.clients.claim())
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return
   event.respondWith(fetch(event.request).catch(() => caches.match(event.request).then(r => r || caches.match('/'))))
+})
+
+self.addEventListener('message', event => {
+  if (event.data?.type === 'SKIP_WAITING') self.skipWaiting()
 })
 
 // ── Push notification handler ──────────────────────────────────────────────────

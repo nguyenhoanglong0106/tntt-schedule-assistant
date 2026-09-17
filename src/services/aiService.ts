@@ -63,7 +63,14 @@ function demoCommand(message:string,data:AppData,profile:Profile):AiResult{
 }
 
 export async function sendAiMessage(message:string,data:AppData,profile:Profile):Promise<AiResult>{
-  if(isSupabaseConfigured&&supabase){ const {data:result,error}=await supabase.functions.invoke('ai-chat',{body:{message,week_start:startOfWeek(new Date().toISOString().slice(0,10))}});if(error)throw error;return result as AiResult }
+  if(isSupabaseConfigured&&supabase){
+    const{data:result,error}=await supabase.functions.invoke('ai-chat',{body:{message,week_start:startOfWeek(new Date().toISOString().slice(0,10))}})
+    if(error){
+      if(error.message==='Unauthorized')throw new Error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.')
+      throw new Error(error.message||'Không gọi được AI.')
+    }
+    return result as AiResult
+  }
   const query=demoQuery(message,data); if(query)return query
   const result=demoCommand(message,data,profile); if(result.kind==='pending')await savePendingAction(result.action); return result
 }

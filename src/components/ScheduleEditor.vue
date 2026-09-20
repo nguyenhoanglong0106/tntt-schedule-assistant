@@ -7,9 +7,9 @@ import { normalizeVi } from '@/utils/normalize'
 
 const props=defineProps<{data:AppData;profile:Profile;existing?:Schedule|null;hideReading?:boolean;weekCursor?:string;defaultTask?:{code:TaskCode;date:string}}>()
 const taskChoices=computed(()=>props.hideReading?props.data.taskTypes.filter(t=>t.code!=='READING'):props.data.taskTypes)
-type QuickSave={id?:string;taskTypeId:string;taskCode:TaskCode;taskName:string;taskIcon:string;branchId:string;date:string;startTime:string|null;endTime:string|null;assignees:Assignee[];reminders:number[]}
+type QuickSave={id?:string;taskTypeId:string;taskCode:TaskCode;taskName:string;taskIcon:string;branchId:string;date:string;startTime:string|null;assignees:Assignee[];reminders:number[]}
 const emit=defineEmits<{save:[QuickSave];cancel:[];delete:[]}>()
-const form=reactive({taskCode:props.existing?.taskCode??props.defaultTask?.code??('CLEANING' as TaskCode),branchId:props.existing?.branchId??props.profile.branchId??props.data.branches[0]?.id??'',date:props.existing?.date??props.defaultTask?.date??todayISO(),startTime:'06:00',endTime:'07:00',selected:[] as string[],search:'',reminders:[180] as number[]})
+const form=reactive({taskCode:props.existing?.taskCode??props.defaultTask?.code??('CLEANING' as TaskCode),branchId:props.existing?.branchId??props.profile.branchId??props.data.branches[0]?.id??'',date:props.existing?.date??props.defaultTask?.date??todayISO(),startTime:'06:00',selected:[] as string[],search:'',reminders:[180] as number[]})
 const task=computed(()=>props.data.taskTypes.find(t=>t.code===form.taskCode)!)
 const readingBranch=computed(()=>readingBranchForDate(form.date,props.data.rotation,props.data.branches))
 const effectiveBranch=computed(()=>form.taskCode==='READING'?readingBranch.value?.id??form.branchId:form.branchId)
@@ -34,9 +34,9 @@ const fixedDayName=computed(()=>{
 const needsTime=computed(()=>form.taskCode!=='CLEANING')
 function applyTaskDefaultTime(){
   if(props.existing||!needsTime.value)return
-  if(branchTimeConfig.value){form.startTime=branchTimeConfig.value.startTime;form.endTime=branchTimeConfig.value.endTime}
-  else if(form.taskCode==='READING'){form.startTime=new Date(`${form.date}T12:00:00+07:00`).getDay()===0?'06:00':'17:00';form.endTime=''}
-  else if(isFixedDayLocked.value&&fixedDayOfWeek.value===0){form.startTime='06:00';form.endTime='07:00'}
+  if(branchTimeConfig.value){form.startTime=branchTimeConfig.value.startTime}
+  else if(form.taskCode==='READING'){form.startTime=new Date(`${form.date}T12:00:00+07:00`).getDay()===0?'06:00':'17:00'}
+  else if(isFixedDayLocked.value&&fixedDayOfWeek.value===0){form.startTime='06:00'}
 }
 watch([()=>form.taskCode,()=>form.branchId],()=>{
   if(!props.existing){
@@ -44,7 +44,7 @@ watch([()=>form.taskCode,()=>form.branchId],()=>{
     applyTaskDefaultTime();
   }
 })
-function hydrate(){const e=props.existing;if(!e)return;form.taskCode=e.taskCode;form.branchId=e.branchId;form.date=e.date;form.startTime=e.startTime??'';form.endTime=e.endTime??'';form.reminders=[...e.reminderOffsets];form.selected=e.assignees.map(a=>a.type==='MEMBER'?`M:${a.memberId}`:`C:${a.classId}`)}
+function hydrate(){const e=props.existing;if(!e)return;form.taskCode=e.taskCode;form.branchId=e.branchId;form.date=e.date;form.startTime=e.startTime??'';form.reminders=[...e.reminderOffsets];form.selected=e.assignees.map(a=>a.type==='MEMBER'?`M:${a.memberId}`:`C:${a.classId}`)}
 hydrate();watch(()=>props.existing,hydrate)
 watch(effectiveBranch,()=>{if(!props.existing)form.selected=[]})
 type Choice={key:string;label:string;type:'MEMBER'|'CLASS';id:string}
@@ -72,7 +72,7 @@ function toggleReminder(v:number){const i=form.reminders.indexOf(v);if(i>=0)form
 function submit(){
  if(form.taskCode==='READING'&&!([0,1,2,4].includes(new Date(`${form.date}T12:00:00+07:00`).getDay()))){alert('Đọc sách chỉ có lịch vào Thứ Hai, Thứ Ba, Thứ Năm và Chủ Nhật.');return}
  const assignees:Assignee[]=form.selected.map(key=>{const [kind,id]=key.split(':');if(kind==='M'){const m=props.data.members.find(x=>x.id===id)!;return{type:'MEMBER',memberId:id,label:m.fullName}}const c=props.data.classes.find(x=>x.id===id)!;return{type:'CLASS',classId:id,label:c.name}})
- emit('save',{id:props.existing?.id,taskTypeId:task.value.id,taskCode:form.taskCode,taskName:task.value.name,taskIcon:task.value.icon,branchId:effectiveBranch.value,date:isFixedDayLocked.value?fixedDate.value:form.date,startTime:needsTime.value?(form.startTime||null):null,endTime:needsTime.value?(form.endTime||null):null,assignees,reminders:[...form.reminders]})
+  emit('save',{id:props.existing?.id,taskTypeId:task.value.id,taskCode:form.taskCode,taskName:task.value.name,taskIcon:task.value.icon,branchId:effectiveBranch.value,date:isFixedDayLocked.value?fixedDate.value:form.date,startTime:needsTime.value?(form.startTime||null):null,assignees,reminders:[...form.reminders]})
 }
 </script>
 <template><div class="overlay" @click.self="$emit('cancel')"><section class="editor"><div class="handle"></div><div class="head"><div><small>{{existing?'CHỈNH SỬA':'TẠO LỊCH NHANH'}}</small><h3>{{existing?'Cập nhật công việc':'Thêm công việc'}}</h3></div><button class="x" @click="$emit('cancel')">✕</button></div>
@@ -81,8 +81,8 @@ function submit(){
 <div v-if="form.taskCode==='READING'" class="info">📖 Ngành đọc sách tuần này: <strong>{{readingBranch?.name||'Chưa cấu hình'}}</strong></div>
 <div v-if="isFixedDayLocked" class="info">📅 Cố định vào {{fixedDayName}} · <strong>{{formatShortDate(fixedDate)}}</strong></div>
 <template v-if="!needsTime"><label>Ngày</label><input v-model="form.date" type="date" /></template>
-<div v-else-if="isFixedDayLocked" class="two"><div><label>Bắt đầu</label><input v-model="form.startTime" type="time" /></div><div><label>Kết thúc <span>(không bắt buộc)</span></label><input v-model="form.endTime" type="time" /></div></div>
-<template v-else><div class="two"><div><label>Ngày</label><input v-model="form.date" type="date" /></div><div><label>Bắt đầu</label><input v-model="form.startTime" type="time" /></div></div><div><label>Kết thúc <span>(không bắt buộc)</span></label><input v-model="form.endTime" type="time" /></div></template>
+<div v-else-if="isFixedDayLocked" class="two"><div><label>Bắt đầu</label><input v-model="form.startTime" type="time" /></div></div>
+<template v-else><div class="two"><div><label>Ngày</label><input v-model="form.date" type="date" /></div><div><label>Bắt đầu</label><input v-model="form.startTime" type="time" /></div></div></template>
 <label>Người / lớp phụ trách <span>(không chọn = cả Ngành)</span></label><input v-model="form.search" placeholder="Tìm nhanh tên hoặc lớp..." /><div class="choice-list"><template v-for="g in groupedChoices" :key="g.label"><div class="group-label" @click="toggleGroup(g.label)">{{g.label}} <span>{{expandedGroups.includes(g.label)||form.search?'▼':'▶'}}</span></div><template v-if="expandedGroups.includes(g.label)||form.search"><button v-for="c in g.items" :key="c.key" type="button" :class="{selected:form.selected.includes(c.key)}" @click="toggle(c.key)"><span class="checkbox">{{form.selected.includes(c.key)?'✓':''}}</span>{{c.type==='CLASS'?'👥':'👤'}} {{c.label}}</button></template></template><p v-if="!groupedChoices.length" class="subtle no-result">Không tìm thấy.</p></div><div v-if="selectedLabel" class="selected-preview">Đã chọn: {{selectedLabel}}</div>
 <label>Nhắc trước</label><div class="chips reminders"><button v-for="r in REMINDER_PRESETS" :key="r" type="button" :class="{selected:form.reminders.includes(r)}" @click="toggleReminder(r)">{{r===1440?'1 ngày':r===720?'12 giờ':r===180?'3 giờ':r===60?'1 giờ':'30 phút'}}</button></div>
 <button class="primary" @click="submit">{{existing?'Lưu thay đổi':'Tạo lịch'}}</button><button v-if="existing" class="danger" @click="$emit('delete')">Xóa lịch này</button></section></div></template>

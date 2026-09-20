@@ -8,7 +8,7 @@ export interface Profile { id: string; fullName: string; role: Role; branchId: s
 export interface ClassGroup { id: string; branchId: string; name: string }
 export interface Member { id: string; branchId: string; classId?: string | null; fullName: string; active: boolean }
 export interface TaskType { id: string; code: TaskCode; name: string; icon: string }
-export interface TaskTypeBranchTime { taskTypeId: string; branchId: string; startTime: string; endTime: string; fixedDayOfWeek?: number | null }
+export interface TaskTypeBranchTime { taskTypeId: string; branchId: string; startTime: string; fixedDayOfWeek?: number | null }
 export interface Assignee { id?: string; type: AssigneeType; memberId?: string; classId?: string; label: string }
 export interface Schedule {
   id: string
@@ -19,7 +19,6 @@ export interface Schedule {
   branchId: string
   date: string
   startTime?: string | null
-  endTime?: string | null
   status: ScheduleStatus
   notes?: string | null
   assignees: Assignee[]

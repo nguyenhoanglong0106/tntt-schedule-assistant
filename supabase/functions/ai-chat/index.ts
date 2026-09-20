@@ -18,7 +18,7 @@ Deno.serve(async(req)=>{
       db.from('task_types').select('id,code,name').eq('active',true),
       db.from('members').select('id,branch_id,full_name').eq('active',true),
       db.from('classes').select('id,branch_id,name').eq('active',true),
-      db.from('schedules').select('id,task_type_id,branch_id,scheduled_date,start_time,end_time,status,task_types(code,name),assignment_assignees(assignee_type,member_id,class_id,members(full_name),classes(name))').gte('scheduled_date',weekStart).lte('scheduled_date',new Date(new Date(`${weekStart}T00:00:00+07:00`).getTime()+20*86400000).toISOString().slice(0,10)),
+      db.from('schedules').select('id,task_type_id,branch_id,scheduled_date,start_time,status,task_types(code,name),assignment_assignees(assignee_type,member_id,class_id,members(full_name),classes(name))').gte('scheduled_date',weekStart).lte('scheduled_date',new Date(new Date(`${weekStart}T00:00:00+07:00`).getTime()+20*86400000).toISOString().slice(0,10)),
       db.from('reading_rotation_config').select('start_date,start_branch_id').eq('singleton_key',1).maybeSingle(),
     ])
     if(profileR.error)throw profileR.error
@@ -32,7 +32,7 @@ Chỉ trả JSON hợp lệ, không markdown. Một trong 3 dạng:\n
 {"kind":"clarify","text":"..."}\n
 {"kind":"action","intent":"...","preview_title":"...","preview_lines":["..."],"operations":[...]}\n
 Operation được phép:\n
-CREATE_SCHEDULE: {"op":"CREATE_SCHEDULE","task_type_id":"uuid","branch_id":"uuid","date":"YYYY-MM-DD","start_time":"HH:MM hoặc rỗng","end_time":"HH:MM hoặc rỗng","assignees":[{"type":"MEMBER|CLASS","id":"uuid"}],"reminders":[180]}\n
+CREATE_SCHEDULE: {"op":"CREATE_SCHEDULE","task_type_id":"uuid","branch_id":"uuid","date":"YYYY-MM-DD","start_time":"HH:MM hoặc rỗng","assignees":[{"type":"MEMBER|CLASS","id":"uuid"}],"reminders":[180]}\n
 UPDATE_SCHEDULE: giống CREATE nhưng thêm schedule_id và phải gửi trạng thái đích đầy đủ.\n
 DELETE_SCHEDULE: {"op":"DELETE_SCHEDULE","schedule_id":"uuid"}\n
 MARK_COMPLETED: {"op":"MARK_COMPLETED","schedule_id":"uuid"}\n

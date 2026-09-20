@@ -46,12 +46,12 @@ export async function loadAppData(): Promise<AppData> {
     supabase.from('task_types').select('id,code,name,icon').eq('active', true).order('sort_order'),
     supabase.from('members').select('id,branch_id,class_id,full_name,active').eq('active', true).order('full_name'),
     supabase.from('classes').select('id,branch_id,name').eq('active', true).order('name'),
-    supabase.from('schedules').select('id,task_type_id,branch_id,scheduled_date,start_time,end_time,status,notes,created_by,completed_at,completed_by,task_types(code,name,icon)').order('scheduled_date'),
+    supabase.from('schedules').select('id,task_type_id,branch_id,scheduled_date,start_time,status,notes,created_by,completed_at,completed_by,task_types(code,name,icon)').order('scheduled_date'),
     supabase.from('reading_rotation_config').select('start_date,start_branch_id').eq('singleton_key', 1).maybeSingle(),
     supabase.from('assignment_assignees').select('id,schedule_id,assignee_type,member_id,class_id,members(full_name),classes(name)'),
     supabase.from('reminders').select('schedule_id,offset_minutes'),
     supabase.from('notifications').select('id,schedule_id,title,body,read_at,created_at').order('created_at',{ascending:false}).limit(50),
-    supabase.from('task_type_branch_times').select('task_type_id,branch_id,start_time,end_time,fixed_day_of_week'),
+    supabase.from('task_type_branch_times').select('task_type_id,branch_id,start_time,fixed_day_of_week'),
   ])
   for (const r of [branchesR,tasksR,membersR,classesR,schedulesR,rotationR,assigneesR,remindersR,notificationsR,taskTimesR]) if (r.error) throw r.error
   const assignees = assigneesR.data ?? []
@@ -63,14 +63,14 @@ export async function loadAppData(): Promise<AppData> {
     classes:(classesR.data??[]).map((x:any)=>({id:x.id,branchId:x.branch_id,name:x.name})),
     schedules:(schedulesR.data??[]).map((x:any)=>({
       id:x.id,taskTypeId:x.task_type_id,taskCode:x.task_types.code,taskName:x.task_types.name,taskIcon:x.task_types.icon,branchId:x.branch_id,date:x.scheduled_date,
-      startTime:x.start_time?.slice(0,5)??null,endTime:x.end_time?.slice(0,5)??null,status:x.status,notes:x.notes,createdBy:x.created_by,
+      startTime:x.start_time?.slice(0,5)??null,status:x.status,notes:x.notes,createdBy:x.created_by,
       completedAt:x.completed_at,completedBy:x.completed_by,
       assignees:assignees.filter((a:any)=>a.schedule_id===x.id).map((a:any)=>({id:a.id,type:a.assignee_type,memberId:a.member_id,classId:a.class_id,label:a.members?.full_name??a.classes?.name??'Chưa rõ'})),
       reminderOffsets:reminders.filter((r:any)=>r.schedule_id===x.id).map((r:any)=>r.offset_minutes),
     })),
     rotation: rotationR.data ? {startDate:rotationR.data.start_date,startBranchId:rotationR.data.start_branch_id} : {startDate:'',startBranchId:''},
     notifications:(notificationsR.data??[]).map((n:any)=>({id:n.id,scheduleId:n.schedule_id,title:n.title,body:n.body,readAt:n.read_at,createdAt:n.created_at})),
-    taskTypeBranchTimes:(taskTimesR.data??[]).map((x:any)=>({taskTypeId:x.task_type_id,branchId:x.branch_id,startTime:x.start_time?.slice(0,5),endTime:x.end_time?.slice(0,5),fixedDayOfWeek:x.fixed_day_of_week}))
+    taskTypeBranchTimes:(taskTimesR.data??[]).map((x:any)=>({taskTypeId:x.task_type_id,branchId:x.branch_id,startTime:x.start_time?.slice(0,5),fixedDayOfWeek:x.fixed_day_of_week}))
   }
 }
 
@@ -79,7 +79,7 @@ export async function saveSchedule(input: Omit<Schedule,'id'> & {id?:string}): P
     const data=readDemo(); const id=input.id??crypto.randomUUID(); const schedule={...input,id} as Schedule
     const i=data.schedules.findIndex(s=>s.id===id); if(i>=0)data.schedules[i]=schedule;else data.schedules.push(schedule); writeDemo(data); return schedule
   }
-  const row={task_type_id:input.taskTypeId,branch_id:input.branchId,scheduled_date:input.date,start_time:input.startTime||null,end_time:input.endTime||null,status:input.status,notes:input.notes||null,source:'MANUAL'}
+  const row={task_type_id:input.taskTypeId,branch_id:input.branchId,scheduled_date:input.date,start_time:input.startTime||null,status:input.status,notes:input.notes||null,source:'MANUAL'}
   const result=input.id ? await supabase.from('schedules').update(row).eq('id',input.id).select().single() : await supabase.from('schedules').insert(row).select().single()
   if(result.error) throw result.error
   const id=result.data.id
@@ -98,14 +98,14 @@ export async function deleteSchedule(id:string):Promise<void>{
   const {error}=await supabase.from('schedules').delete().eq('id',id);if(error)throw error
 }
 
-export async function saveTaskTypeBranchTime(taskTypeId:string,branchId:string,startTime:string,endTime:string,fixedDayOfWeek:number|null):Promise<void>{
+export async function saveTaskTypeBranchTime(taskTypeId:string,branchId:string,startTime:string,fixedDayOfWeek:number|null):Promise<void>{
   if(!isSupabaseConfigured||!supabase){
     const d=readDemo();const i=d.taskTypeBranchTimes.findIndex(x=>x.taskTypeId===taskTypeId&&x.branchId===branchId)
-    const row={taskTypeId,branchId,startTime,endTime,fixedDayOfWeek}
+    const row={taskTypeId,branchId,startTime,fixedDayOfWeek}
     if(i>=0)d.taskTypeBranchTimes[i]=row;else d.taskTypeBranchTimes.push(row)
     writeDemo(d);return
   }
-  const {error}=await supabase.from('task_type_branch_times').upsert({task_type_id:taskTypeId,branch_id:branchId,start_time:startTime,end_time:endTime,fixed_day_of_week:fixedDayOfWeek},{onConflict:'task_type_id,branch_id'});if(error)throw error
+  const {error}=await supabase.from('task_type_branch_times').upsert({task_type_id:taskTypeId,branch_id:branchId,start_time:startTime,fixed_day_of_week:fixedDayOfWeek},{onConflict:'task_type_id,branch_id'});if(error)throw error
 }
 export async function createTaskType(name:string,icon:string):Promise<void>{
   const code=name.normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/đ/gi,'d').toUpperCase().replace(/[^A-Z0-9]+/g,'_').replace(/^_+|_+$/g,'')||'TASK'

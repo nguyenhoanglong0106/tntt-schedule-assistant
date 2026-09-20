@@ -3,14 +3,10 @@ const SHELL = ['/', '/manifest.webmanifest']
 
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)))
-  self.skipWaiting()
 })
 
 self.addEventListener('activate', event => {
   event.waitUntil(self.clients.claim())
-  self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clients => {
-    clients.forEach(c => c.postMessage({ type: 'UPDATE_AVAILABLE' }))
-  })
 })
 
 self.addEventListener('fetch', event => {
@@ -19,7 +15,15 @@ self.addEventListener('fetch', event => {
 })
 
 self.addEventListener('message', event => {
-  if (event.data?.type === 'SKIP_WAITING') self.skipWaiting()
+  if (event.data?.type === 'SKIP_WAITING') {
+    self.skipWaiting()
+    self.addEventListener('activate', function handler() {
+      self.removeEventListener('activate', handler)
+      self.clients.matchAll({ type: 'window' }).then(clients => {
+        clients.forEach(c => c.postMessage({ type: 'UPDATE_APPLIED' }))
+      })
+    })
+  }
 })
 
 // ── Push notification handler (FCM) ──────────────────────────────────

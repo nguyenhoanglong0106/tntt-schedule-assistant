@@ -2,37 +2,40 @@
 
 ## Bước 1 – Chạy migration database
 
-Vào **Supabase Dashboard → SQL Editor**, chạy file:
-```sql
--- Nội dung file: supabase/migrations/202609160005_push_subscriptions.sql
-create table if not exists public.push_subscriptions (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references auth.users(id) on delete cascade,
-  endpoint text not null unique,
-  p256dh text not null,
-  auth text not null,
-  created_at timestamptz not null default now()
-);
-create index push_subs_user_idx on public.push_subscriptions(user_id);
-alter table public.push_subscriptions enable row level security;
-create policy push_subs_owner on public.push_subscriptions for all to authenticated
-  using(user_id=auth.uid()) with check(user_id=auth.uid());
-```
+Chạy lần lượt `supabase/migrations/202609160005_push_subscriptions.sql` và `supabase/migrations/202609160007_fcm_tokens.sql` trong **Supabase Dashboard → SQL Editor** (hoặc `npx supabase db push`).
 
 ## Bước 2 – Deploy Edge Functions
 
 ```bash
-supabase functions deploy save-push-subscription
-supabase functions deploy process-reminders --no-verify-jwt
+npx supabase functions deploy save-push-subscription
+npx supabase functions deploy process-reminders --no-verify-jwt
 ```
 
-## Bước 3 – Set VAPID secrets vào Supabase
+## Bước 3 – Set secrets vào Supabase
+
+Gửi push dùng **FCM HTTP v1** (API legacy `fcm/send` + server key đã bị Google tắt).
+
+1. Firebase Console → ⚙️ Project settings → **Service accounts** → **Generate new private key** → tải file JSON.
+2. Set toàn bộ nội dung file JSON làm secret:
 
 ```bash
-supabase secrets set VAPID_PUBLIC_KEY=BGVx2JhnUdrhYqghaPGNVUDUedBXaSeYSahvU4cgGC5Ez5kmxZY_3m1VxkvHr0X9T4OYwZ28ztQ-QX1eUU74nKA
-supabase secrets set VAPID_PRIVATE_KEY=3zz-sEdLA87Xt6VzcQrHq4o8KH9v4Mxi_G959zjsPWI
-supabase secrets set CRON_SECRET=CHANGE_ME_STRONG_RANDOM_SECRET
+npx supabase secrets set FIREBASE_SERVICE_ACCOUNT="$(cat tntt-26354-firebase-adminsdk-xxxx.json)"
+npx supabase secrets set CRON_SECRET=CHANGE_ME_STRONG_RANDOM_SECRET
 ```
+
+Không commit file JSON service account vào git.
+
+## Kiểm tra nhanh
+
+Sau khi bật thông báo trên ít nhất một thiết bị (tab **🔔 Thông báo**), gửi thử một thông báo tới mọi thiết bị đã đăng ký:
+
+```bash
+curl -X POST https://YOUR_PROJECT_REF.supabase.co/functions/v1/process-reminders \
+  -H "x-cron-secret: CRON_SECRET_CUA_BAN" -H "Content-Type: application/json" \
+  -d '{"test":true}'
+```
+
+Kết quả mong đợi: `{"ok":true,"test":true,"users":1,"sent":1,"failed":0,...}`. Nếu `users` = 0 thì thiết bị chưa lưu được token; nếu `failed` > 0 xem `errors`.
 
 ## Bước 4 – Cài đặt cron (chạy mỗi 5 phút)
 

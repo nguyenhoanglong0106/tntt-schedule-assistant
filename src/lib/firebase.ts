@@ -1,5 +1,5 @@
 import { initializeApp, getApps } from 'firebase/app'
-import { getMessaging } from 'firebase/messaging'
+import { getMessaging, type Messaging } from 'firebase/messaging'
 import { browser } from '@/utils/browser'
 
 export const firebaseConfig = {
@@ -12,11 +12,14 @@ export const firebaseConfig = {
 }
 
 export const firebaseApp = getApps().length ? getApps()[0] : initializeApp(firebaseConfig)
-export const messaging = getMessaging(firebaseApp)
 
-export async function initMessaging() {
-  if (!browser || !('serviceWorker' in navigator)) return
-  try {
-    await navigator.serviceWorker.register('/firebase-messaging-sw.js')
-  } catch (_) {}
+// getMessaging throws on browsers without Push API (e.g. iOS Safari outside an installed PWA)
+export let messaging: Messaging | null = null
+try { messaging = getMessaging(firebaseApp) } catch (_) { messaging = null }
+
+// Push shares the app's single service worker (/sw.js); a second worker at scope "/" would replace it.
+export async function getPushRegistration(): Promise<ServiceWorkerRegistration | null> {
+  if (!browser || !('serviceWorker' in navigator)) return null
+  await navigator.serviceWorker.register('/sw.js')
+  return navigator.serviceWorker.ready
 }

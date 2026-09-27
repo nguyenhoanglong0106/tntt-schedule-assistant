@@ -28,17 +28,20 @@ self.addEventListener('message', event => {
 
 // ── Push notification handler (FCM) ──────────────────────────────────
 self.addEventListener('push', event => {
-  let data = {}
-  try { data = event.data?.json() ?? {} } catch (_) { data = { title: 'TNTT', body: event.data?.text() ?? '' } }
+  let payload = {}
+  try { payload = event.data?.json() ?? {} } catch (_) { payload = { data: { body: event.data?.text() ?? '' } } }
+  // FCM v1 wraps fields as { notification?: {...}, data: {...} }
+  const n = payload.notification ?? {}
+  const d = payload.data ?? {}
 
-  const title = data.title ?? 'Nhắc việc TNTT'
+  const title = n.title ?? d.title ?? 'Nhắc việc TNTT'
   const options = {
-    body: data.body ?? '',
-    icon: data.icon ?? '/icon-192.png',
-    badge: data.badge ?? '/icon-512.png',
-    tag: data.tag ?? 'tntt-reminder',
+    body: n.body ?? d.body ?? '',
+    icon: '/icon-192.png',
+    badge: '/icon-192.png',
+    tag: d.schedule_id ? `tntt-${d.schedule_id}` : 'tntt-reminder',
     requireInteraction: false,
-    data: data.data ?? { url: '/reminders' },
+    data: { url: d.url ?? '/reminders' },
     actions: [{ action: 'open', title: 'Mở ứng dụng' }]
   }
 

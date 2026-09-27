@@ -53,33 +53,36 @@ UPDATE_READING_ROTATION chỉ SUPER_ADMIN: {"op":"UPDATE_READING_ROTATION","star
 Khi user hỏi lịch, trả answer từ schedules/context. Khi thay đổi nhiều mục, gom vào một action để user xác nhận một lần.`
     const apiKey=Deno.env.get('GEMINI_API_KEY')
     if(!apiKey)return json({kind:'clarify',text:'AI chưa được cấu hình. Vui lòng liên hệ admin để thiết lập GEMINI_API_KEY.'})
-    const model=Deno.env.get('GEMINI_MODEL')||'gemini-2.5-flash-lite'
-    const maxAttempts=3
+    // Google retires/restricts model ids over time, so fall back to the next model on 404 or persistent overload
+    const models=[...new Set([Deno.env.get('GEMINI_MODEL')?.trim(),'gemini-3.5-flash-lite','gemini-3.1-flash-lite'].filter(Boolean) as string[])]
+    const payload=JSON.stringify({
+      systemInstruction:{parts:[{text:instructions}]},
+      contents:[{role:'user',parts:[{text:`CONTEXT:\n${JSON.stringify(context)}\n\nUSER:\n${message}`}]}],
+      generationConfig:{responseMimeType:'application/json'}
+    })
     let aiResponse:Response|undefined
-    for(let attempt=1;attempt<=maxAttempts;attempt++){
-      try{
-        aiResponse=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,{
-          method:'POST',
-          headers:{'Content-Type':'application/json','x-goog-api-key':apiKey},
-          body:JSON.stringify({
-            systemInstruction:{parts:[{text:instructions}]},
-            contents:[{role:'user',parts:[{text:`CONTEXT:\n${JSON.stringify(context)}\n\nUSER:\n${message}`}]}],
-            generationConfig:{responseMimeType:'application/json'}
+    let lastStatus=0
+    outer:for(const model of models){
+      for(let attempt=1;attempt<=2;attempt++){
+        try{
+          aiResponse=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,{
+            method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':apiKey},body:payload
           })
-        })
-      }catch{
-        if(attempt===maxAttempts)return json({kind:'clarify',text:'Lỗi kết nối AI. Vui lòng thử lại sau.'})
-        await new Promise(r=>setTimeout(r,500*attempt));continue
+        }catch{lastStatus=0;aiResponse=undefined;await new Promise(r=>setTimeout(r,500*attempt));continue}
+        if(aiResponse.ok)break outer
+        lastStatus=aiResponse.status
+        console.error(`[ai-chat] ${model} -> ${lastStatus}`,(await aiResponse.text()).slice(0,300))
+        aiResponse=undefined
+        if(lastStatus===404)continue outer
+        if(lastStatus!==503&&lastStatus!==429)break outer
+        await new Promise(r=>setTimeout(r,500*attempt))
       }
-      if(aiResponse.ok)break
-      const retryable=aiResponse.status===503||aiResponse.status===429
-      if(!retryable||attempt===maxAttempts){
-        const hint=aiResponse.status===503?'AI đang quá tải, vui lòng thử lại sau ít phút.':`AI API lỗi (${aiResponse.status}). Vui lòng thử lại sau.`
-        return json({kind:'clarify',text:hint})
-      }
-      await new Promise(r=>setTimeout(r,500*attempt))
     }
-    const raw=await aiResponse!.json()
+    if(!aiResponse){
+      const hint=lastStatus===0?'Lỗi kết nối AI. Vui lòng thử lại sau.':lastStatus===503||lastStatus===429?'AI đang quá tải, vui lòng thử lại sau ít phút.':`AI API lỗi (${lastStatus}). Vui lòng thử lại sau.`
+      return json({kind:'clarify',text:hint})
+    }
+    const raw=await aiResponse.json()
     const text=extractText(raw)
     if(!text)return json({kind:'clarify',text:'AI không trả lời được. Hãy nói rõ hơn.'})
     let parsed

@@ -141,7 +141,7 @@ Sau khi đã có Super Admin, tạo 5 Admin Ngành tại:
 
 ```bash
 npx supabase secrets set GEMINI_API_KEY=YOUR_GEMINI_API_KEY
-npx supabase secrets set GEMINI_MODEL=gemini-2.5-flash-lite
+npx supabase secrets set GEMINI_MODEL=gemini-3.5-flash-lite
 ```
 
 Tạo secret cho reminder cron:

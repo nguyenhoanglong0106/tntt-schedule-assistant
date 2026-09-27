@@ -13,6 +13,8 @@ const router=createRouter({history:createWebHistory(),routes:[
  {path:'/create-admin',component:()=>import('@/views/CreateAdminView.vue')},
  {path:'/people',component:()=>import('@/views/PeopleView.vue')},
  {path:'/activity-log',component:()=>import('@/views/ActivityLogView.vue')},
+ {path:'/stats',component:()=>import('@/views/StatsView.vue')},
+ {path:'/guide',component:()=>import('@/views/GuideView.vue')},
  {path:'/login',component:()=>import('@/views/LoginView.vue'),meta:{hideNav:true}},
 ]})
 router.beforeEach(async(to:any)=>{if(!isSupabaseConfigured)return true;const session=(await supabase!.auth.getSession()).data.session;if(!session&&to.path!='/login')return'/login';if(session&&to.path==='/login')return'/';return true})

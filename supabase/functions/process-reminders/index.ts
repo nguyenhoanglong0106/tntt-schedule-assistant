@@ -46,7 +46,7 @@ async function fcmSend(sa: ServiceAccount, accessToken: string, token: string, d
     if (res.ok) return { ok: true, stale: false }
     const text = await res.text()
     const stale = res.status === 404 || text.includes('UNREGISTERED') || (res.status === 400 && text.includes('registration token'))
-    return { ok: false, stale, error: `${res.status} ${text.slice(0, 300)}` }
+    return { ok: false, stale, error: `[${token.slice(0, 12)}] ${res.status} ${text.slice(0, 300)}` }
   } catch (e: any) {
     return { ok: false, stale: false, error: e?.message ?? String(e) }
   }
@@ -108,13 +108,22 @@ Deno.serve(async (req) => {
     ])
     if (error) throw error
 
+    const startOf = (s: any): string | null => s.start_time
+      ?? (branchTimes ?? []).find((t: any) => t.task_type_id === s.task_type_id && t.branch_id === s.branch_id)?.start_time
+      ?? null
+    async function notifyBranch(s: any, title: string, body: string, url: string) {
+      const { data: profiles } = await db.from('profiles').select('id').or(`role.eq.SUPER_ADMIN,branch_id.eq.${s.branch_id}`)
+      for (const p of profiles ?? []) {
+        await db.from('notifications').insert({ user_id: p.id, schedule_id: s.id, title, body })
+        await pushToUser(p.id, { title, body, url, schedule_id: s.id })
+      }
+    }
+
     let delivered = 0
     for (const r of items ?? []) {
       const s: any = r.schedules
       if (['COMPLETED', 'CANCELLED'].includes(s.status)) continue
-      const startTime: string | null = s.start_time
-        ?? (branchTimes ?? []).find((t: any) => t.task_type_id === s.task_type_id && t.branch_id === s.branch_id)?.start_time
-        ?? null
+      const startTime = startOf(s)
       if (!startTime) continue
       const eventMs = new Date(`${s.scheduled_date}T${startTime.slice(0, 5)}:00+07:00`).getTime()
       const dueMs = eventMs - r.offset_minutes * 60_000
@@ -126,15 +135,12 @@ Deno.serve(async (req) => {
       const dayStr = s.scheduled_date === today ? 'hôm nay' : `ngày ${s.scheduled_date}`
       const msg = assignees.length ? `${assignees.join(', ')} – ${timeStr} ${dayStr}` : `Bắt đầu lúc ${timeStr} ${dayStr}`
 
-      const { data: profiles } = await db.from('profiles').select('id').or(`role.eq.SUPER_ADMIN,branch_id.eq.${s.branch_id}`)
-      for (const p of profiles ?? []) {
-        await db.from('notifications').insert({ user_id: p.id, schedule_id: s.id, title, body: msg })
-        await pushToUser(p.id, { title, body: msg, url: '/reminders', schedule_id: s.id })
-      }
+      await notifyBranch(s, title, msg, '/reminders')
 
       await db.from('reminders').update({ delivered_at: new Date().toISOString() }).eq('id', r.id)
       delivered++
     }
+
     if (errors.length) console.error('[process-reminders] push errors', errors)
     return json({ ok: true, delivered, sent, failed, push_configured: !!sa, errors: errors.slice(0, 5) })
   } catch (e: any) {

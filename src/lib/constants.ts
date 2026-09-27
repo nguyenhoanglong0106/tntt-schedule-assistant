@@ -16,4 +16,4 @@ export const DEMO_TASK_TYPES: TaskType[] = [
 ]
 
 export const READING_WEEKDAYS = [1, 2, 4, 0] // Mon, Tue, Thu, Sun
-export const REMINDER_PRESETS = [1440, 720, 180, 60, 30]
+export const REMINDER_PRESETS = [30, 60, 180, 720, 1440]

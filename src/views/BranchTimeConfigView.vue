@@ -2,6 +2,7 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import BranchBadge from '@/components/BranchBadge.vue'
+import TimeInput24 from '@/components/TimeInput24.vue'
 import { useApp } from '@/composables/useApp'
 import { createTaskType, saveTaskTypeBranchTime } from '@/services/dataService'
 const {state,refresh}=useApp();const router=useRouter()
@@ -34,7 +35,7 @@ async function addType(){if(!newTypeName.value.trim())return;await createTaskTyp
 <div class="task-grid"><button v-for="t in taskChoices" :key="t.id" :class="{selected:taskTypeId===t.id}" @click="taskTypeId=t.id;branchIds=[]"><span>{{t.icon}}</span>{{t.name}}</button></div>
 
 <h2>Giờ áp dụng</h2>
-<section class="surface"><div class="two"><div><label>Bắt đầu</label><input v-model="startTime" type="time"></div></div>
+<section class="surface"><div class="two"><div><label>Bắt đầu</label><TimeInput24 v-model="startTime" /></div></div>
 <label>Ngày cố định <span>(tùy chọn)</span></label>
 <div class="chips"><button v-for="d in dayChoices" :key="d.value===null?-1:d.value" type="button" :class="{selected:fixedDayOfWeek===d.value}" @click="fixedDayOfWeek=d.value">{{d.label}}</button></div>
 <label>Áp dụng cho Ngành <span>(chọn nhiều được)</span></label>

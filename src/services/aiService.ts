@@ -1,10 +1,11 @@
 import { isSupabaseConfigured, supabase } from '@/lib/supabase'
 import { savePendingAction, getPendingAction, saveSchedule } from '@/services/dataService'
 import type { AppData, PendingAction, Profile, Schedule, TaskCode } from '@/types'
-import { nextWeekdayInWeek, readingBranchForDate, startOfWeek, weekLabel } from '@/utils/date'
+import { nextWeekdayInWeek, readingBranchForDate, startOfWeek, todayISO, weekLabel } from '@/utils/date'
 import { normalizeVi } from '@/utils/normalize'
 
-type AiResult = { kind:'answer'; text:string } | { kind:'pending'; action:PendingAction } | { kind:'clarify'; text:string }
+type AiResult = { kind:'answer'; text:string } | { kind:'pending'; action:PendingAction } | { kind:'clarify'; text:string } | { kind:'share'; text:string }
+export type ChatTurn = { from:'user'|'ai'; text:string }
 
 type Draft = { taskCode:TaskCode; date:string; branchId:string; startTime?:string|null; assigneeIds:string[] }
 
@@ -62,9 +63,9 @@ function demoCommand(message:string,data:AppData,profile:Profile):AiResult{
   return{kind:'pending',action}
 }
 
-export async function sendAiMessage(message:string,data:AppData,profile:Profile):Promise<AiResult>{
+export async function sendAiMessage(message:string,data:AppData,profile:Profile,history:ChatTurn[]=[]):Promise<AiResult>{
   if(isSupabaseConfigured&&supabase){
-    const{data:result,error}=await supabase.functions.invoke('ai-chat',{body:{message,week_start:startOfWeek(new Date().toISOString().slice(0,10))}})
+    const{data:result,error}=await supabase.functions.invoke('ai-chat',{body:{message,history,week_start:startOfWeek(todayISO())}})
     if(error){
       if(error.message==='Unauthorized')throw new Error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.')
       throw new Error(error.message||'Không gọi được AI.')

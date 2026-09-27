@@ -174,7 +174,7 @@ export async function getActivityLogs(limit=100):Promise<any[]>{
 
 export async function copyWeek(sourceWeekStart:string,targetWeekStart:string,branchId:string|null):Promise<number>{
   const data=await loadAppData();const srcEnd=new Date(new Date(`${sourceWeekStart}T12:00:00+07:00`).getTime()+6*86400000).toISOString().slice(0,10)
-  const items=data.schedules.filter(s=>s.date>=sourceWeekStart&&s.date<=srcEnd&&(!branchId||s.branchId===branchId)&&s.taskCode!=='READING')
+  const items=data.schedules.filter(s=>s.date>=sourceWeekStart&&s.date<=srcEnd&&(!branchId||s.branchId===branchId)&&s.taskCode!=='READING'&&s.status!=='CANCELLED')
   let count=0
   for(const s of items){
     const offset=Math.round((new Date(`${s.date}T12:00:00+07:00`).getTime()-new Date(`${sourceWeekStart}T12:00:00+07:00`).getTime())/86400000)

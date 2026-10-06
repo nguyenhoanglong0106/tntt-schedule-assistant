@@ -5,7 +5,7 @@ const router=createRouter({history:createWebHistory(),routes:[
  {path:'/',component:HomeView},
  {path:'/calendar',component:()=>import('@/views/CalendarView.vue')},
  {path:'/tasks',component:()=>import('@/views/TasksView.vue')},
- {path:'/ai',component:()=>import('@/views/AIView.vue')},
+ {path:'/ai',component:()=>import('@/views/AIView.vue'),meta:{fill:true}},
  {path:'/reminders',component:()=>import('@/views/RemindersView.vue')},
  {path:'/profile',component:()=>import('@/views/ProfileView.vue')},
  {path:'/reading-config',component:()=>import('@/views/ReadingConfigView.vue')},
@@ -14,6 +14,8 @@ const router=createRouter({history:createWebHistory(),routes:[
  {path:'/people',component:()=>import('@/views/PeopleView.vue')},
  {path:'/activity-log',component:()=>import('@/views/ActivityLogView.vue')},
  {path:'/stats',component:()=>import('@/views/StatsView.vue')},
+ {path:'/attendance',component:()=>import('@/views/AttendanceView.vue')},
+ {path:'/kpi',component:()=>import('@/views/KpiView.vue')},
  {path:'/guide',component:()=>import('@/views/GuideView.vue')},
  {path:'/login',component:()=>import('@/views/LoginView.vue'),meta:{hideNav:true}},
 ]})

@@ -14,7 +14,7 @@ async function handleUpdate(){
 function retryUpdate(){cancelUpdate.value=false;applyUpdate()}
 onMounted(()=>{refresh();checkUpdate()})
 </script>
-<template><div class="app-shell"><main :class="{'with-nav':showNav}"><RouterView/></main><BottomNav v-if="showNav"/>
+<template><div class="app-shell"><main :class="{'with-nav':showNav,fill:route.meta.fill===true}"><RouterView/></main><BottomNav v-if="showNav"/>
 <div v-if="updateAvailable&&!updating&&!cancelUpdate" class="update-banner" @click="handleUpdate">
   <span>✨ Có bản cập nhật mới</span>
   <button class="update-btn">Cập nhật</button>
@@ -28,4 +28,4 @@ onMounted(()=>{refresh();checkUpdate()})
   <button class="update-btn update-cancel" @click.stop="cancelUpdate=false">Hủy</button>
 </div>
 </div></template>
-<style scoped>.app-shell{min-height:100vh;display:flex;flex-direction:column}.app-shell main{flex:1}.update-banner{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#1d4ed8;color:#fff;padding:12px 20px;border-radius:14px;display:flex;align-items:center;gap:12px;box-shadow:0 8px 24px rgba(29,78,216,.3);z-index:999;cursor:pointer;font-size:.85rem}.update-btn{background:#fff;color:#1d4ed8;border:0;border-radius:999px;padding:6px 14px;font-weight:800;font-size:.8rem;cursor:pointer}.update-loading{background:#64748b;cursor:default}.update-error{background:#dc2626;cursor:default}.update-cancel{background:rgba(255,255,255,.2);color:#fff}</style>
+<style scoped>.app-shell{min-height:100vh;display:flex;flex-direction:column}.app-shell main{flex:1}.update-banner{position:fixed;bottom:calc(78px + env(safe-area-inset-bottom));max-width:calc(100vw - 24px);left:50%;transform:translateX(-50%);background:#1d4ed8;color:#fff;padding:12px 20px;border-radius:14px;display:flex;align-items:center;gap:12px;box-shadow:0 8px 24px rgba(29,78,216,.3);z-index:999;cursor:pointer;font-size:.85rem}.update-btn{background:#fff;color:#1d4ed8;border:0;border-radius:999px;padding:6px 14px;font-weight:800;font-size:.8rem;cursor:pointer}.update-loading{background:#64748b;cursor:default}.update-error{background:#dc2626;cursor:default}.update-cancel{background:rgba(255,255,255,.2);color:#fff}</style>

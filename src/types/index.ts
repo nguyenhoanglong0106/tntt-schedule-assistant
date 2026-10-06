@@ -29,7 +29,10 @@ export interface Schedule {
 }
 export interface ReadingRotationConfig { startDate: string; startBranchId: string }
 export interface AppNotification { id:string; scheduleId?:string|null; title:string; body:string; readAt?:string|null; createdAt:string }
-export interface AppData { branches: Branch[]; taskTypes: TaskType[]; members: Member[]; classes: ClassGroup[]; schedules: Schedule[]; rotation: ReadingRotationConfig; notifications: AppNotification[]; taskTypeBranchTimes: TaskTypeBranchTime[] }
+export type AttendanceStatus = 'PRESENT' | 'LATE' | 'EXCUSED' | 'ABSENT'
+// One per assigned member/class of a schedule, plus substitutes (members who came in someone's place)
+export interface Attendance { scheduleId: string; memberId?: string | null; classId?: string | null; status: AttendanceStatus; isSubstitute: boolean }
+export interface AppData { branches: Branch[]; taskTypes: TaskType[]; members: Member[]; classes: ClassGroup[]; schedules: Schedule[]; rotation: ReadingRotationConfig; notifications: AppNotification[]; taskTypeBranchTimes: TaskTypeBranchTime[]; attendance: Attendance[] }
 export interface PendingAction {
   id: string
   intent: string

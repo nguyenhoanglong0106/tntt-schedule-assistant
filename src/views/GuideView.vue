@@ -3,6 +3,7 @@ import { computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useApp } from '@/composables/useApp'
 import { datesOfWeek, todayISO } from '@/utils/date'
+import { pendingAttendance } from '@/utils/kpi'
 
 const router=useRouter();const {state,refresh}=useApp()
 onMounted(refresh)
@@ -15,6 +16,8 @@ const tips=computed(():Tip[]=>{
   const d=state.data,p=state.profile;if(!d||!p)return []
   const mine=(branchId:string)=>p.role==='SUPER_ADMIN'||branchId===p.branchId
   const out:Tip[]=[]
+  const toMark=pendingAttendance(d,p,todayISO()).length
+  if(toMark)out.push({icon:'📋',text:`Có ${toMark} công việc đã diễn ra nhưng chưa điểm danh.`,action:'Điểm danh',to:'/reminders'})
   if(!pushOn)out.push({icon:'🔔',text:'Bạn chưa bật thông báo trên thiết bị này — sẽ không nhận được nhắc việc.',action:'Bật ngay',to:'/reminders'})
   const week=datesOfWeek(todayISO())
   if(!d.schedules.some(s=>s.taskCode!=='READING'&&week.includes(s.date)&&mine(s.branchId)))out.push({icon:'📋',text:'Tuần này chưa có lịch công tác. Bạn có thể sao chép từ tuần trước.',action:'Mở Công tác',to:'/tasks'})
@@ -35,7 +38,8 @@ const guide=[
   {icon:'🚀',title:'Bắt đầu nhanh',steps:[
     'Vào tab <b>Nhắc việc</b> → bật <b>Thông báo điện thoại</b>.',
     'Vào tab <b>Công tác</b> → bấm <b>＋ Tạo lịch</b> để phân công.',
-    'Đến giờ nhắc, trưởng ngành nhận thông báo trên điện thoại — không cần làm gì thêm.']},
+    'Đến giờ nhắc, trưởng ngành nhận thông báo trên điện thoại — không cần làm gì thêm.',
+    'Làm xong việc → vào <b>Nhắc việc</b> bấm <b>📋 Điểm danh</b> để ghi nhận ai có mặt.']},
   {icon:'🗓️',title:'Tạo lịch công tác',steps:[
     'Tab <b>Công tác</b> → <b>＋ Tạo lịch</b>.',
     'Chọn <b>công việc</b> (Vệ sinh, Bán kem, Trực văn phòng…).',
@@ -48,25 +52,48 @@ const guide=[
     'Tab <b>Công tác</b> → chuyển tới tuần cần xếp lịch.',
     'Bấm <b>📋 Sao chép … lịch từ tuần trước</b>.',
     'Lịch trùng (cùng ngày, giờ, công việc) tự được bỏ qua. Sau đó chỉnh lại người phụ trách nếu cần.']},
+  {icon:'🖼️',title:'Gửi lịch tuần thành ảnh (Zalo)',steps:[
+    'Tab <b>Lịch</b> → chọn tuần → bấm <b>🖼️ Xuất ảnh</b> ở góc trên.',
+    'Chọn <b>Cả Đoàn</b> hoặc <b>một ngành</b> — ảnh tự cập nhật.',
+    'Bấm <b>📤 Gửi Zalo / Chia sẻ</b> → chọn Zalo → chọn nhóm. Trên máy tính: bấm <b>⬇️ Tải ảnh về</b> rồi gửi ảnh.'],
+   note:'Ảnh có logo Đoàn, tuần đọc sách, giờ – công việc – ngành – người phụ trách của từng ngày. Lịch đã hủy không hiện trong ảnh.'},
   {icon:'🔔',title:'Nhắc việc & thông báo',steps:[
     'Thông báo gửi tới trưởng ngành của lịch và Super Admin, đúng theo các mốc <b>nhắc trước</b> đã chọn.',
     'Nếu mốc nhắc đã qua khi tạo lịch, form sẽ cảnh báo để bạn chọn mốc gần hơn.',
-    'Mỗi thiết bị cần bật thông báo riêng (điện thoại, máy tính…).'],
-   note:'<b>iPhone:</b> mở web bằng Safari → Chia sẻ → <b>Thêm vào Màn hình chính</b> → mở app từ biểu tượng đó → bật thông báo và bấm Cho phép. Cần iOS 16.4 trở lên.'},
-  {icon:'📖',title:'Đọc sách',steps:[
-    'Đọc sách xếp theo vòng xoay giữa các ngành vào Thứ 2, Thứ 3, Thứ 5 và Chủ Nhật.',
-    'Tab <b>Lịch</b> để phân công người đọc; Trang chủ báo những ngày còn thiếu người.',
-    'Super Admin chỉnh vòng xoay ở <b>Cá nhân → Cấu hình vòng đọc sách</b>.']},
+    'Mỗi thiết bị cần bật thông báo riêng (điện thoại, máy tính…).',
+    '<b>21 giờ tối</b>, nếu việc trong ngày chưa được điểm danh, trưởng ngành nhận thông báo <i>“📋 Nhớ điểm danh nhé”</i>.'],
+   note:'<b>iPhone:</b> mở web bằng Safari → Chia sẻ → <b>Thêm vào Màn hình chính</b> → mở app từ biểu tượng đó → bật thông báo và bấm Cho phép. Cần iOS 16.4 trở lên. Nếu biểu tượng app bị nền đen, hãy xóa app khỏi màn hình chính rồi thêm lại.'},
+  {icon:'✅',title:'Điểm danh',steps:[
+    'Sau giờ làm việc, công việc tự hiện trong khung <b>📋 Cần điểm danh</b> ở tab <b>Nhắc việc</b> và ở <b>Trang chủ</b>.',
+    'Bấm <b>Điểm danh</b>: mọi người mặc định <b>✅ Có mặt</b>, chỉ cần đổi người <b>⏰ Trễ</b>, <b>🟡 Có phép</b> hoặc <b>❌ Vắng</b>.',
+    'Có người đến làm thay? Chọn ở mục <b>🔄 Người làm thay</b> → <b>＋ Thêm</b>.',
+    'Bấm <b>💾 Lưu điểm danh</b> — công việc chuyển sang “Hoàn thành”.',
+    'Điểm danh nhầm? Vào <b>Cá nhân → Điểm danh</b> → mục <b>Đã điểm danh</b> → bấm vào để sửa (trong 14 ngày).'],
+   note:'Việc chưa tới giờ sẽ <b>chưa</b> hiện để điểm danh — ví dụ lịch bán kem Chủ nhật 06:00 chỉ điểm danh được từ 06:00 sáng Chủ nhật. Trưởng ngành điểm danh ngành mình; Ban Điều Hành điểm danh được mọi ngành.'},
+  {icon:'🏆',title:'Bảng siêng năng',steps:[
+    '<b>Cá nhân → 🏆 Bảng siêng năng</b>.',
+    'Chọn thời gian: <b>Tháng này</b>, <b>Năm học</b> (01/09 → 31/08) hoặc <b>Năm nay</b>; chọn từng ngành hoặc cả Đoàn.',
+    'Xem bục vinh danh 🥇🥈🥉, điểm, tỷ lệ chuyên cần và huy hiệu của từng người.',
+    'Bấm vào tên để xem chi tiết từng buổi.'],
+   note:'<b>Cách tính điểm:</b> ✅ Có mặt +10 · 🔄 Làm thay +12 · ⏰ Đi trễ +5 · 🟡 Vắng có phép 0 · ❌ Vắng không phép −5.<br><b>Chuyên cần</b> = số buổi có mặt hoặc đi trễ ÷ số buổi đã điểm danh. Phân công cho cả lớp không tính vào điểm cá nhân.'},
   {icon:'✨',title:'Phân công nhanh bằng AI',steps:[
     'Bấm nút <b>✨ AI</b> ở giữa thanh dưới.',
     'Gõ câu tự nhiên, ví dụ: <i>“T2 Minh Thư, T3 Đức đọc sách”</i> hoặc <i>“Chủ nhật này ai bán kem?”</i>.',
-    'AI hiện bản xem trước — chỉ lưu khi bạn bấm <b>xác nhận</b>.']},
-  {icon:'📊',title:'Thống kê phân công',steps:[
+    'AI hiện bản xem trước — chỉ lưu khi bạn bấm <b>xác nhận</b>.',
+    'Nếu AI báo <b>quá tải</b>, đợi vài giây rồi bấm <b>🔄 Thử lại</b> — không cần gõ lại câu hỏi.',
+    'Bấm <b>＋ Trò chuyện mới</b> để bắt đầu lại từ đầu.']},
+  {icon:'📊',title:'Thống kê & Excel cuối năm',steps:[
     '<b>Cá nhân → Thống kê phân công</b>: xem mỗi người được phân công bao nhiêu lần trong tháng.',
-    'Lọc theo ngành, theo công việc; xem ai chưa được phân công để chia việc đều hơn.']},
+    'Lọc theo ngành, theo công việc; xem ai chưa được phân công để chia việc đều hơn.',
+    'Chọn năm → bấm <b>📊 Xuất Excel cả năm</b> để tải file lưu trữ và đánh giá.'],
+   note:'File Excel gồm 5 trang: <b>Xếp hạng siêng năng</b>, <b>Lịch công tác</b>, <b>Điểm danh</b>, <b>Theo người</b>, <b>Theo ngành</b>.'},
+  {icon:'👥',title:'Thành viên & lớp',steps:[
+    '<b>Cá nhân → Thành viên</b>: thêm thành viên (＋) và lớp.',
+    'Bấm vào <b>tên thành viên</b> để sửa họ tên hoặc đổi lớp.',
+    'Không xóa được người đang có lịch trong tuần — hãy xóa lịch của họ trước.']},
   {icon:'🔐',title:'Quyền trong app',steps:[
-    '<b>Super Admin</b>: tạo/sửa lịch mọi ngành, cài giờ gợi ý, vòng đọc sách, tạo Admin ngành.',
-    '<b>Admin ngành</b>: xem lịch của mọi ngành, nhưng chỉ tạo/sửa lịch của ngành mình.']},
+    '<b>Super Admin (Ban Điều Hành)</b>: tạo/sửa lịch và điểm danh mọi ngành, cài giờ gợi ý, vòng đọc sách, tạo Admin ngành.',
+    '<b>Admin ngành</b>: xem lịch và bảng siêng năng của mọi ngành, nhưng chỉ tạo/sửa lịch và điểm danh ngành mình.']},
 ]
 </script>
 <template><div class="page" v-if="state.data&&state.profile">

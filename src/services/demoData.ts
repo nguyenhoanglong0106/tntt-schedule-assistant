@@ -36,5 +36,5 @@ export function makeDemoData(): AppData {
     schedule({id:'s6',taskTypeId:'task-icecream',taskCode:'ICE_CREAM',taskName:'Bán kem',branchId:'branch-thieu',date:addDays(base,6),startTime:'07:00',assignees:[{type:'CLASS',classId:'class-thieu-2',label:'Thiếu 2'}],reminderOffsets:[720,30]}),
     schedule({id:'s7',taskTypeId:'task-office',taskCode:'OFFICE_DUTY',taskName:'Trực văn phòng',branchId:'branch-hiep',date:addDays(base,6),startTime:'07:30',assignees:[{type:'MEMBER',memberId:'m-bao-hiep',label:'Bảo'}]}),
   ]
-  return { branches:DEMO_BRANCHES, taskTypes:DEMO_TASK_TYPES, members, classes, schedules, rotation:{startDate:base,startBranchId:'branch-thieu'}, notifications:[], taskTypeBranchTimes:[] }
+  return { branches:DEMO_BRANCHES, taskTypes:DEMO_TASK_TYPES, members, classes, schedules, rotation:{startDate:base,startBranchId:'branch-thieu'}, notifications:[], taskTypeBranchTimes:[], attendance:[] }
 }

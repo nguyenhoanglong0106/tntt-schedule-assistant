@@ -1,6 +1,6 @@
 import { isSupabaseConfigured, supabase } from '@/lib/supabase'
 import { makeDemoData } from '@/services/demoData'
-import type { AppData, PendingAction, Profile, ReadingRotationConfig, Schedule } from '@/types'
+import type { AppData, Attendance, PendingAction, Profile, ReadingRotationConfig, Schedule } from '@/types'
 import { normalizeVi } from '@/utils/normalize'
 
 const DEMO_KEY = 'tntt-demo-data-v1'
@@ -9,7 +9,8 @@ const DEMO_PENDING_KEY = 'tntt-demo-pending-v1'
 
 function readDemo(): AppData {
   const raw = localStorage.getItem(DEMO_KEY)
-  if (raw) return JSON.parse(raw)
+  // Older demo data predates attendance
+  if (raw) { const d = JSON.parse(raw); d.attendance ??= []; return d }
   const seed = makeDemoData()
   localStorage.setItem(DEMO_KEY, JSON.stringify(seed))
   return seed
@@ -20,7 +21,7 @@ export async function getCurrentProfile(): Promise<Profile | null> {
   if (!isSupabaseConfigured || !supabase) {
     const raw = localStorage.getItem(DEMO_PROFILE_KEY)
     if (raw) return JSON.parse(raw)
-    const p: Profile = { id:'demo-super', fullName:'Trưởng Đoàn', role:'SUPER_ADMIN', branchId:null }
+    const p: Profile = { id:'demo-super', fullName:'Ban Điều Hành', role:'SUPER_ADMIN', branchId:null }
     localStorage.setItem(DEMO_PROFILE_KEY, JSON.stringify(p))
     return p
   }
@@ -41,7 +42,7 @@ export async function bootstrapProfile(fullName: string): Promise<Profile> {
 
 export async function loadAppData(): Promise<AppData> {
   if (!isSupabaseConfigured || !supabase) return readDemo()
-  const [branchesR, tasksR, membersR, classesR, schedulesR, rotationR, assigneesR, remindersR, notificationsR, taskTimesR] = await Promise.all([
+  const [branchesR, tasksR, membersR, classesR, schedulesR, rotationR, assigneesR, remindersR, notificationsR, taskTimesR, attendanceR] = await Promise.all([
     supabase.from('branches').select('id,code,name,color_hex,rotation_index').order('rotation_index'),
     supabase.from('task_types').select('id,code,name,icon').eq('active', true).order('sort_order'),
     supabase.from('members').select('id,branch_id,class_id,full_name,active').eq('active', true).order('full_name'),
@@ -52,8 +53,12 @@ export async function loadAppData(): Promise<AppData> {
     supabase.from('reminders').select('schedule_id,offset_minutes'),
     supabase.from('notifications').select('id,schedule_id,title,body,read_at,created_at').order('created_at',{ascending:false}).limit(50),
     supabase.from('task_type_branch_times').select('task_type_id,branch_id,start_time,fixed_day_of_week'),
+    supabase.from('attendance').select('schedule_id,member_id,class_id,status,is_substitute'),
   ])
   for (const r of [branchesR,tasksR,membersR,classesR,schedulesR,rotationR,assigneesR,remindersR,notificationsR,taskTimesR]) if (r.error) throw r.error
+  // Attendance is optional: until its migration runs the table is missing (PGRST205) and the rest of the app must still load
+  if (attendanceR.error && attendanceR.error.code !== 'PGRST205') throw attendanceR.error
+  if (attendanceR.error) console.warn('[loadAppData] attendance table missing – run the attendance migration')
   const assignees = assigneesR.data ?? []
   const reminders = remindersR.data ?? []
   return {
@@ -70,7 +75,8 @@ export async function loadAppData(): Promise<AppData> {
     })),
     rotation: rotationR.data ? {startDate:rotationR.data.start_date,startBranchId:rotationR.data.start_branch_id} : {startDate:'',startBranchId:''},
     notifications:(notificationsR.data??[]).map((n:any)=>({id:n.id,scheduleId:n.schedule_id,title:n.title,body:n.body,readAt:n.read_at,createdAt:n.created_at})),
-    taskTypeBranchTimes:(taskTimesR.data??[]).map((x:any)=>({taskTypeId:x.task_type_id,branchId:x.branch_id,startTime:x.start_time?.slice(0,5),fixedDayOfWeek:x.fixed_day_of_week}))
+    taskTypeBranchTimes:(taskTimesR.data??[]).map((x:any)=>({taskTypeId:x.task_type_id,branchId:x.branch_id,startTime:x.start_time?.slice(0,5),fixedDayOfWeek:x.fixed_day_of_week})),
+    attendance:(attendanceR.data??[]).map((x:any)=>({scheduleId:x.schedule_id,memberId:x.member_id,classId:x.class_id,status:x.status,isSubstitute:x.is_substitute})),
   }
 }
 
@@ -154,6 +160,23 @@ export async function findOrCreateMemberByName(branchId:string,fullName:string):
   const {data:created,error:ie}=await supabase.from('members').insert({branch_id:branchId,class_id:null,full_name:fullName,active:true}).select('id,full_name').single()
   if(ie)throw ie
   return {id:created.id,fullName:created.full_name}
+}
+export type MemberDetails = { fullName:string; classId:string|null }
+export async function updateMember(id:string,m:MemberDetails):Promise<void>{
+  if(!isSupabaseConfigured||!supabase){const d=readDemo();const x=d.members.find(y=>y.id===id);if(x)Object.assign(x,m);writeDemo(d);return}
+  const {error}=await supabase.from('members').update({full_name:m.fullName,class_id:m.classId}).eq('id',id);if(error)throw error
+}
+/** Replace a schedule's attendance and mark it done (cancelled schedules keep their status) */
+export async function saveAttendance(scheduleId:string,rows:Omit<Attendance,'scheduleId'>[]):Promise<void>{
+  if(!isSupabaseConfigured||!supabase){
+    const d=readDemo();d.attendance=[...d.attendance.filter(a=>a.scheduleId!==scheduleId),...rows.map(r=>({...r,scheduleId}))]
+    const s=d.schedules.find(x=>x.id===scheduleId);if(s&&s.status!=='CANCELLED'){s.status='COMPLETED';s.completedAt=new Date().toISOString()}
+    writeDemo(d);return
+  }
+  const {error:de}=await supabase.from('attendance').delete().eq('schedule_id',scheduleId);if(de)throw de
+  if(rows.length){const {error}=await supabase.from('attendance').insert(rows.map(r=>({schedule_id:scheduleId,member_id:r.memberId??null,class_id:r.classId??null,status:r.status,is_substitute:r.isSubstitute})));if(error)throw error}
+  const {data:{user}}=await supabase.auth.getUser()
+  const {error}=await supabase.from('schedules').update({status:'COMPLETED',completed_at:new Date().toISOString(),completed_by:user?.id??null}).eq('id',scheduleId).neq('status','CANCELLED');if(error)throw error
 }
 export async function deactivateMember(id:string):Promise<void>{
   if(!isSupabaseConfigured||!supabase){const d=readDemo();const m=d.members.find(x=>x.id===id);if(m)m.active=false;writeDemo(d);return}

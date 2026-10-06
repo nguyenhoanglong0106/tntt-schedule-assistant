@@ -1,7 +1,7 @@
 import { ref, watch } from 'vue'
 
 // ctx: what the AI sees for this turn in later requests (e.g. the preview it proposed), when it differs from the bubble text
-export type ChatMessage = { from:'user'|'ai'; text:string; ctx?:string; share?:boolean }
+export type ChatMessage = { from:'user'|'ai'; text:string; ctx?:string; share?:boolean; at?:number; retry?:string }
 
 const KEY='tntt-ai-chat-v1'
 const GREETING:ChatMessage={from:'ai',text:'Chào bạn 👋 Hãy nói việc cần phân công, hỏi về lịch, hoặc nhờ tôi soạn tin nhắn gửi nhóm.'}

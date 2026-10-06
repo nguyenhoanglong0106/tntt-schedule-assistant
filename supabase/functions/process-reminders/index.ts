@@ -141,8 +141,37 @@ Deno.serve(async (req) => {
       delivered++
     }
 
+    // "Chưa điểm danh": from 21:00 remind each branch once about today's unmarked schedules
+    // (yesterday's too, in case the cron was down at night)
+    let attendanceReminded = 0
+    const vnHour = new Date(now + 7 * 3600_000).getUTCHours()
+    const { data: unmarked, error: ue } = await db.from('schedules')
+      .select('id,branch_id,scheduled_date,start_time,task_type_id,task_types(name),assignment_assignees(id),attendance(id)')
+      .gte('scheduled_date', yesterday)
+      .lte('scheduled_date', vnHour >= 21 ? today : yesterday)
+      .not('status', 'in', '(CANCELLED,COMPLETED)')
+      .is('attendance_reminded_at', null)
+    if (ue) throw ue
+    const due = (unmarked ?? []).filter((s: any) => s.assignment_assignees?.length && !s.attendance?.length)
+    const byBranch = new Map<string, any[]>()
+    for (const s of due) byBranch.set(s.branch_id, [...(byBranch.get(s.branch_id) ?? []), s])
+    for (const [branchId, list] of byBranch) {
+      // Branch admins mark their own branch; fall back to super admins when the branch has none
+      let { data: admins } = await db.from('profiles').select('id').eq('branch_id', branchId)
+      if (!admins?.length) ({ data: admins } = await db.from('profiles').select('id').eq('role', 'SUPER_ADMIN'))
+      const what = list.map((s: any) => `${s.task_types?.name ?? 'Công việc'}${(startOf(s) ?? '').slice(0, 5) ? ' ' + startOf(s)!.slice(0, 5) : ''}${s.scheduled_date === today ? '' : ` (${s.scheduled_date.slice(8, 10)}/${s.scheduled_date.slice(5, 7)})`}`).join(', ')
+      const title = '📋 Nhớ điểm danh nhé'
+      const body = `${what} chưa được điểm danh. Bấm để điểm danh.`
+      for (const p of admins ?? []) {
+        await db.from('notifications').insert({ user_id: p.id, title, body })
+        await pushToUser(p.id, { title, body, url: '/attendance' })
+      }
+      await db.from('schedules').update({ attendance_reminded_at: new Date().toISOString() }).in('id', list.map((s: any) => s.id))
+      attendanceReminded += list.length
+    }
+
     if (errors.length) console.error('[process-reminders] push errors', errors)
-    return json({ ok: true, delivered, sent, failed, push_configured: !!sa, errors: errors.slice(0, 5) })
+    return json({ ok: true, delivered, attendance_reminded: attendanceReminded, sent, failed, push_configured: !!sa, errors: errors.slice(0, 5) })
   } catch (e: any) {
     console.error('[process-reminders]', e)
     return json({ error: e?.message ?? 'Reminder error' }, 500)

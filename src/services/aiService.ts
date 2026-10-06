@@ -4,7 +4,7 @@ import type { AppData, PendingAction, Profile, Schedule, TaskCode } from '@/type
 import { nextWeekdayInWeek, readingBranchForDate, startOfWeek, todayISO, weekLabel } from '@/utils/date'
 import { normalizeVi } from '@/utils/normalize'
 
-type AiResult = { kind:'answer'; text:string } | { kind:'pending'; action:PendingAction } | { kind:'clarify'; text:string } | { kind:'share'; text:string }
+type AiResult = { kind:'answer'; text:string } | { kind:'pending'; action:PendingAction } | { kind:'clarify'; text:string; retry?:boolean } | { kind:'share'; text:string }
 export type ChatTurn = { from:'user'|'ai'; text:string }
 
 type Draft = { taskCode:TaskCode; date:string; branchId:string; startTime?:string|null; assigneeIds:string[] }

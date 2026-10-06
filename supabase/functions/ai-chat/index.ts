@@ -75,34 +75,41 @@ SOẠN TIN: khi user muốn soạn/tạo tin nhắn hoặc thông báo để g�
 CÔNG BẰNG: khi user nhờ xếp/gợi ý người mà không nêu tên, chọn members của đúng ngành có số lần ít nhất trong assignment_history_60d cho công việc đó (không có trong danh sách = 0 lần); hòa thì ưu tiên last_date cũ nhất; không xếp một người 2 lần trong cùng tuần nếu còn người khác. Ghi lý do trong preview_lines, vd "Hoàng – 0 lần trong 60 ngày".`
     const apiKey=Deno.env.get('GEMINI_API_KEY')
     if(!apiKey)return json({kind:'clarify',text:'AI chưa được cấu hình. Vui lòng liên hệ admin để thiết lập GEMINI_API_KEY.'})
-    // Google retires/restricts model ids over time, so fall back to the next model on 404 or persistent overload
-    const models=[...new Set([Deno.env.get('GEMINI_MODEL')?.trim(),'gemini-3.5-flash-lite','gemini-3.1-flash-lite'].filter(Boolean) as string[])]
+    // Google retires/restricts model ids over time, so fall back to the next model on 404 or persistent overload.
+    // Each model has its own quota, and the -latest aliases keep working when a pinned id is retired.
+    const models=[...new Set([Deno.env.get('GEMINI_MODEL')?.trim(),'gemini-3.5-flash-lite','gemini-3.1-flash-lite','gemini-flash-lite-latest','gemini-flash-latest'].filter(Boolean) as string[])]
     const payload=JSON.stringify({
       systemInstruction:{parts:[{text:instructions}]},
       contents:[...history,{role:'user',parts:[{text:`CONTEXT:\n${JSON.stringify(context)}\n\nUSER:\n${message}`}]}],
       generationConfig:{responseMimeType:'application/json'}
     })
+    const sleep=(ms:number)=>new Promise(r=>setTimeout(r,ms))
+    // Exponential backoff with jitter; honour Retry-After when Google sends one
+    const backoff=(attempt:number,res?:Response)=>{const ra=Number(res?.headers.get('retry-after'));return Number.isFinite(ra)&&ra>0?Math.min(ra*1000,4000):800*2**(attempt-1)+Math.random()*400}
+    const deadline=Date.now()+30_000
     let aiResponse:Response|undefined
     let lastStatus=0
     outer:for(const model of models){
-      for(let attempt=1;attempt<=2;attempt++){
+      for(let attempt=1;attempt<=3&&Date.now()<deadline;attempt++){
+        let res:Response
         try{
-          aiResponse=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,{
+          res=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,{
             method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':apiKey},body:payload
           })
-        }catch{lastStatus=0;aiResponse=undefined;await new Promise(r=>setTimeout(r,500*attempt));continue}
-        if(aiResponse.ok)break outer
-        lastStatus=aiResponse.status
-        console.error(`[ai-chat] ${model} -> ${lastStatus}`,(await aiResponse.text()).slice(0,300))
-        aiResponse=undefined
+        }catch{lastStatus=0;await sleep(backoff(attempt));continue}
+        if(res.ok){aiResponse=res;break outer}
+        lastStatus=res.status
+        console.error(`[ai-chat] ${model} -> ${lastStatus}`,(await res.text()).slice(0,300))
         if(lastStatus===404)continue outer
-        if(lastStatus!==503&&lastStatus!==429)break outer
-        await new Promise(r=>setTimeout(r,500*attempt))
+        // 429 = this model's quota is used up, so retrying it is pointless; another model has its own quota
+        if(lastStatus===429)continue outer
+        if(lastStatus!==503&&lastStatus!==500)break outer
+        if(attempt<3)await sleep(backoff(attempt,res))
       }
     }
     if(!aiResponse){
-      const hint=lastStatus===0?'Lỗi kết nối AI. Vui lòng thử lại sau.':lastStatus===503||lastStatus===429?'AI đang quá tải, vui lòng thử lại sau ít phút.':`AI API lỗi (${lastStatus}). Vui lòng thử lại sau.`
-      return json({kind:'clarify',text:hint})
+      const hint=lastStatus===0?'Lỗi kết nối AI.':lastStatus===503||lastStatus===500||lastStatus===429?'AI đang quá tải.':`AI API lỗi (${lastStatus}).`
+      return json({kind:'clarify',text:`${hint} Bấm "Thử lại" sau ít giây nhé.`,retry:true})
     }
     const raw=await aiResponse.json()
     const text=extractText(raw)

@@ -69,7 +69,7 @@ function mic(){const SR=(window as any).SpeechRecognition||(window as any).webki
 <footer><div class="suggestions"><button v-for="s in suggestions" :key="s.label" :disabled="busy" @click="send(s.q)">{{s.label}}</button></div><div class="composer"><button class="mic" :class="{on:listening}" @click="mic">🎤</button><textarea ref="input" v-model="text" rows="1" placeholder="Nhập tin nhắn…" @keydown.enter.exact.prevent="send()"></textarea><button class="send" :disabled="busy||!text.trim()" @click="send()">➤</button></div></footer>
 <ConfirmActionSheet v-if="pending" :action="pending" @cancel="cancel" @confirm="confirm"/></div></template>
 <style scoped>
-.ai-page{height:100%;max-width:760px;margin:auto;display:flex;flex-direction:column;background:#f1f5f9}
+.ai-page{flex:1;min-height:0;width:100%;max-width:760px;margin:0 auto;display:flex;flex-direction:column;background:#f1f5f9}
 .ai-page header{flex:none;padding:12px 14px;background:#fff;border-bottom:1px solid #e8edf4;display:flex;justify-content:space-between;align-items:center;gap:10px}
 .who{display:flex;align-items:center;gap:10px;min-width:0;flex:1}.who>div{min-width:0}.ai-page h1{font-size:1.08rem;margin:0;white-space:nowrap}.ai-page header small{color:#64748b;font-size:.74rem;display:flex;align-items:center;gap:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .dot{width:7px;height:7px;border-radius:50%;background:#22c55e;flex:none}

@@ -1,5 +1,5 @@
 import { isSupabaseConfigured, supabase } from '@/lib/supabase'
-import type { Meeting, MeetingFile } from '@/types'
+import type { Meeting, MeetingFile, MeetingSummary } from '@/types'
 import { normalizeVi } from '@/utils/normalize'
 
 const BUCKET = 'meeting-files'
@@ -44,7 +44,7 @@ export async function listMeetings(isSuper: boolean): Promise<Meeting[]> {
     }))
   }
   const { data, error } = await supabase.from('meetings')
-    .select('id,title,meeting_date,notes,created_at,notified_at,meeting_files(id,name,path,mime,size,created_at)')
+    .select('id,title,meeting_date,notes,created_at,notified_at,summary,summarized_at,meeting_files(id,name,path,mime,size,created_at)')
     .order('meeting_date', { ascending: false })
   if (error) throw error
   const { data: { session } } = await supabase.auth.getSession()
@@ -61,7 +61,7 @@ export async function listMeetings(isSuper: boolean): Promise<Meeting[]> {
     for (const s of signed ?? []) if (s.path && s.signedUrl) urls.set(s.path, s.signedUrl)
   }
   return (data ?? []).map((m: any) => ({
-    id: m.id, title: m.title, date: m.meeting_date, notes: m.notes, createdAt: m.created_at, notifiedAt: m.notified_at,
+    id: m.id, title: m.title, date: m.meeting_date, notes: m.notes, createdAt: m.created_at, notifiedAt: m.notified_at, summary: m.summary ?? null, summarizedAt: m.summarized_at,
     files: (m.meeting_files ?? []).sort((a: any, b: any) => a.created_at.localeCompare(b.created_at)).map((f: any) => ({
       id: f.id, meetingId: m.id, name: f.name, path: f.path, mime: f.mime, size: f.size, createdAt: f.created_at, url: urls.get(f.path) ?? null,
     })),
@@ -75,7 +75,7 @@ export async function saveMeeting(input: { id?: string; title: string; date: str
     const d = readDemo()
     const existing = d.meetings.find(m => m.id === input.id)
     if (existing) Object.assign(existing, { title: input.title, date: input.date, notes: input.notes })
-    else d.meetings.push({ id: crypto.randomUUID(), title: input.title, date: input.date, notes: input.notes, createdAt: new Date().toISOString(), notifiedAt: null })
+    else d.meetings.push({ id: crypto.randomUUID(), title: input.title, date: input.date, notes: input.notes, createdAt: new Date().toISOString(), notifiedAt: null, summary: null, summarizedAt: null })
     writeDemo(d); return existing?.id ?? d.meetings[d.meetings.length - 1].id
   }
   const row = { title: input.title, meeting_date: input.date, notes: input.notes }
@@ -144,4 +144,31 @@ export async function latestUnseenMeeting(): Promise<{ id: string; title: string
   const { data: { session } } = await supabase.auth.getSession()
   const { data: view } = await supabase.from('meeting_views').select('meeting_id').eq('meeting_id', data.id).eq('user_id', session?.user.id ?? '').maybeSingle()
   return view ? null : data
+}
+
+/** AI reads the notes, photos, PDFs and Word files server-side and stores the summary on the meeting */
+export async function summarizeMeeting(meetingId: string): Promise<MeetingSummary> {
+  if (!isSupabaseConfigured || !supabase) {
+    // Demo has no AI: split the notes into points so the layout can be tried
+    const d = readDemo(); const m = d.meetings.find(x => x.id === meetingId)
+    const points = (m?.notes ?? '').split(/\n|(?=\d+\.\s)/).map(s => s.replace(/^\s*[-–\d.]+\s*/, '').trim()).filter(Boolean)
+    const summary: MeetingSummary = { points: points.length ? points : ['(Demo) Chưa có nội dung để tóm tắt'], actions: [{ task: '(Demo) Gửi danh sách trại sinh', owner: 'Ngành Thiếu', due: '20/10' }] }
+    if (m) { m.summary = summary; m.summarizedAt = new Date().toISOString(); writeDemo(d) }
+    return summary
+  }
+  const { data, error } = await supabase.functions.invoke('summarize-meeting', { body: { meeting_id: meetingId } })
+  if (error) {
+    // The function's own message (AI quá tải…) is in the response body
+    const body = await (error as any).context?.json?.().catch(() => null)
+    throw new Error(body?.error ?? error.message)
+  }
+  return data.summary
+}
+
+/** Recent meetings without file links, to pick one to attach a report to */
+export async function recentMeetings(limit = 6): Promise<{ id: string; title: string; date: string }[]> {
+  if (!isSupabaseConfigured || !supabase) return [...readDemo().meetings].sort((a, b) => b.date.localeCompare(a.date)).slice(0, limit).map(m => ({ id: m.id, title: m.title, date: m.date }))
+  const { data, error } = await supabase.from('meetings').select('id,title,meeting_date').order('meeting_date', { ascending: false }).limit(limit)
+  if (error) throw error
+  return (data ?? []).map(m => ({ id: m.id, title: m.title, date: m.meeting_date }))
 }

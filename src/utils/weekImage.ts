@@ -3,26 +3,26 @@ import { datesOfWeek, parseISO, readingBranchForDate } from './date'
 
 const ORG_NAME = 'ĐOÀN TNTT ĐAMINH SAVIO · GX BẮC THẦN'
 const MOTTO = 'Cầu nguyện – Rước lễ – Hy sinh – Làm việc tông đồ'
-const FONT = 'system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
+export const FONT = 'system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
 const DAY_NAMES = ['Chủ Nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy']
 
 // dd/MM regardless of the browser's locale quirks (some render vi-VN dates as dd-MM)
 const dm = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`
 
-const W = 1080, PAD = 44, CARD_PAD = 26, TIME_W = 118, LINE = 38, WHO_LINE = 34, ROW_GAP = 18, DAY_HEAD = 66, HEADER_H = 270
+export const W = 1080, PAD = 44, CARD_PAD = 26, TIME_W = 118, LINE = 38, WHO_LINE = 34, ROW_GAP = 18, DAY_HEAD = 66, HEADER_H = 270
 
 export type WeekImageOptions = { data: AppData; weekStart: string; branchId?: string | null }
 
 // Schedules without their own time use the branch default (same rule as the calendar and reminders)
 const timeOf = (s: Schedule, data: AppData) => s.startTime ?? data.taskTypeBranchTimes.find(t => t.taskTypeId === s.taskTypeId && t.branchId === s.branchId)?.startTime ?? null
 
-function isLight(hex: string) {
+export function isLight(hex: string) {
   const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim()); if (!m) return false
   const n = parseInt(m[1], 16); const r = n >> 16, g = (n >> 8) & 255, b = n & 255
   return 0.299 * r + 0.587 * g + 0.114 * b > 170
 }
 
-function wrap(ctx: CanvasRenderingContext2D, text: string, maxW: number): string[] {
+export function wrap(ctx: CanvasRenderingContext2D, text: string, maxW: number): string[] {
   const lines: string[] = []; let cur = ''
   for (const word of text.split(/\s+/)) {
     const next = cur ? `${cur} ${word}` : word
@@ -33,13 +33,48 @@ function wrap(ctx: CanvasRenderingContext2D, text: string, maxW: number): string
   return lines
 }
 
-function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
+export function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
   ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r)
   ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath()
 }
 
 function loadImage(src: string) {
   return new Promise<HTMLImageElement | null>(resolve => { const img = new Image(); img.onload = () => resolve(img); img.onerror = () => resolve(null); img.src = src })
+}
+
+/** Red band with the Đoàn logo, name, a big title and subtitle (+ optional white pill); shared by the week and month images */
+export async function drawHeader(ctx: CanvasRenderingContext2D, { title, subtitle, pill }: { title: string; subtitle: string; pill?: string }) {
+  const hg = ctx.createLinearGradient(0, 0, W, HEADER_H); hg.addColorStop(0, '#b91c1c'); hg.addColorStop(1, '#ef4444')
+  ctx.fillStyle = hg; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(W, 0); ctx.lineTo(W, HEADER_H - 30); ctx.quadraticCurveTo(W / 2, HEADER_H + 30, 0, HEADER_H - 30); ctx.closePath(); ctx.fill()
+  ctx.fillStyle = 'rgba(255,255,255,.07)'
+  for (const [x, y, r] of [[W - 90, 40, 150], [W - 250, 210, 80], [W - 30, 230, 60]]) { ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill() }
+
+  const logo = await loadImage('/icon-512.png')
+  const LOGO = 168, lx = PAD, ly = 40
+  ctx.save(); ctx.shadowColor = 'rgba(0,0,0,.25)'; ctx.shadowBlur = 18; ctx.fillStyle = '#fff'
+  ctx.beginPath(); ctx.arc(lx + LOGO / 2, ly + LOGO / 2, LOGO / 2 + 6, 0, Math.PI * 2); ctx.fill(); ctx.restore()
+  if (logo) { ctx.save(); ctx.beginPath(); ctx.arc(lx + LOGO / 2, ly + LOGO / 2, LOGO / 2, 0, Math.PI * 2); ctx.clip(); ctx.drawImage(logo, lx, ly, LOGO, LOGO); ctx.restore() }
+
+  const tx = lx + LOGO + 34
+  ctx.textBaseline = 'alphabetic'
+  ctx.fillStyle = '#fde68a'; ctx.font = `800 23px ${FONT}`; ctx.fillText(ORG_NAME, tx, 82, W - tx - PAD)
+  ctx.fillStyle = '#fff'; ctx.font = `900 54px ${FONT}`; ctx.fillText(title, tx, 146, W - tx - PAD)
+  ctx.font = `700 34px ${FONT}`; ctx.fillText(subtitle, tx, 196, W - tx - PAD)
+  if (pill) {
+    ctx.font = `800 24px ${FONT}`; const pw = ctx.measureText(pill).width + 36
+    ctx.fillStyle = '#fff'; roundRect(ctx, tx, 214, pw, 42, 21); ctx.fill()
+    ctx.fillStyle = '#b91c1c'; ctx.fillText(pill, tx + 18, 243)
+  }
+}
+
+/** Motto and "made at" line, centred, starting at y */
+export function drawFooter(ctx: CanvasRenderingContext2D, y: number) {
+  ctx.textAlign = 'center'
+  ctx.fillStyle = '#b91c1c'; ctx.font = `800 26px ${FONT}`; ctx.fillText(MOTTO, W / 2, y + 30, W - PAD * 2)
+  const now = new Date()
+  ctx.fillStyle = '#94a3b8'; ctx.font = `500 21px ${FONT}`
+  ctx.fillText(`TNTT Lịch · cập nhật ${now.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false })} ${now.toLocaleDateString('vi-VN')}`, W / 2, y + 70)
+  ctx.textAlign = 'left'
 }
 
 type Row = { s: Schedule; time: string; branch?: Branch; who: string[]; h: number }
@@ -76,29 +111,8 @@ export async function renderWeekImage({ data, weekStart, branchId }: WeekImageOp
   const bg = ctx.createLinearGradient(0, 0, 0, H); bg.addColorStop(0, '#fff7ed'); bg.addColorStop(1, '#eff6ff')
   ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H)
 
-  // Header band
-  const hg = ctx.createLinearGradient(0, 0, W, HEADER_H); hg.addColorStop(0, '#b91c1c'); hg.addColorStop(1, '#ef4444')
-  ctx.fillStyle = hg; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(W, 0); ctx.lineTo(W, HEADER_H - 30); ctx.quadraticCurveTo(W / 2, HEADER_H + 30, 0, HEADER_H - 30); ctx.closePath(); ctx.fill()
-  ctx.fillStyle = 'rgba(255,255,255,.07)'
-  for (const [x, y, r] of [[W - 90, 40, 150], [W - 250, 210, 80], [W - 30, 230, 60]]) { ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill() }
-
-  const logo = await loadImage('/icon-512.png')
-  const LOGO = 168, lx = PAD, ly = 40
-  ctx.save(); ctx.shadowColor = 'rgba(0,0,0,.25)'; ctx.shadowBlur = 18; ctx.fillStyle = '#fff'
-  ctx.beginPath(); ctx.arc(lx + LOGO / 2, ly + LOGO / 2, LOGO / 2 + 6, 0, Math.PI * 2); ctx.fill(); ctx.restore()
-  if (logo) { ctx.save(); ctx.beginPath(); ctx.arc(lx + LOGO / 2, ly + LOGO / 2, LOGO / 2, 0, Math.PI * 2); ctx.clip(); ctx.drawImage(logo, lx, ly, LOGO, LOGO); ctx.restore() }
-
-  const tx = lx + LOGO + 34
-  ctx.textBaseline = 'alphabetic'
-  ctx.fillStyle = '#fde68a'; ctx.font = `800 23px ${FONT}`; ctx.fillText(ORG_NAME, tx, 82, W - tx - PAD)
-  ctx.fillStyle = '#fff'; ctx.font = `900 54px ${FONT}`; ctx.fillText('LỊCH CÔNG TÁC TUẦN', tx, 146, W - tx - PAD)
   const end = datesOfWeek(weekStart)[6]
-  ctx.font = `700 34px ${FONT}`; ctx.fillText(`${dm(weekStart)} – ${dm(end)}/${end.slice(0, 4)}`, tx, 196)
-  if (filterBranch) {
-    ctx.font = `800 24px ${FONT}`; const label = `Ngành ${filterBranch.name}`; const pw = ctx.measureText(label).width + 36
-    ctx.fillStyle = '#fff'; roundRect(ctx, tx, 214, pw, 42, 21); ctx.fill()
-    ctx.fillStyle = '#b91c1c'; ctx.fillText(label, tx + 18, 243)
-  }
+  await drawHeader(ctx, { title: 'LỊCH CÔNG TÁC TUẦN', subtitle: `${dm(weekStart)} – ${dm(end)}/${end.slice(0, 4)}`, pill: filterBranch ? `Ngành ${filterBranch.name}` : undefined })
 
   let y = HEADER_H + 30
 
@@ -153,14 +167,7 @@ export async function renderWeekImage({ data, weekStart, branchId }: WeekImageOp
     y += day.h + 22
   }
 
-  // Footer
-  y += 20
-  ctx.textAlign = 'center'
-  ctx.fillStyle = '#b91c1c'; ctx.font = `800 26px ${FONT}`; ctx.fillText(MOTTO, W / 2, y + 30, W - PAD * 2)
-  const now = new Date()
-  ctx.fillStyle = '#94a3b8'; ctx.font = `500 21px ${FONT}`
-  ctx.fillText(`TNTT Lịch · cập nhật ${now.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false })} ${now.toLocaleDateString('vi-VN')}`, W / 2, y + 70)
-  ctx.textAlign = 'left'
+  drawFooter(ctx, y + 20)
 
   return new Promise((resolve, reject) => canvas.toBlob(b => b ? resolve(b) : reject(new Error('Không tạo được ảnh')), 'image/png'))
 }

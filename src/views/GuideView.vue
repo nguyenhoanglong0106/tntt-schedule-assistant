@@ -77,7 +77,8 @@ const guide=[
     '<b>Cá nhân → 🏆 Bảng siêng năng</b>.',
     'Chọn thời gian: <b>Tháng này</b>, <b>Năm học</b> (01/09 → 31/08) hoặc <b>Năm nay</b>; chọn từng ngành hoặc cả Đoàn.',
     'Xem bục vinh danh 🥇🥈🥉, điểm, tỷ lệ chuyên cần và huy hiệu của từng người.',
-    'Bấm vào tên để xem chi tiết từng buổi.'],
+    'Bấm vào tên để xem chi tiết từng buổi.',
+    '<b>📊 Báo cáo tháng</b>: ảnh tổng kết tháng (số buổi, chuyên cần từng ngành, top siêng năng, ai vắng nhiều) để gửi Zalo hoặc đính kèm vào buổi họp. Ngày 1 hằng tháng Ban Điều Hành nhận thông báo nhắc.'],
    note:'<b>Cách tính điểm:</b> ✅ Có mặt +10 · 🔄 Làm thay +12 · ⏰ Đi trễ +5 · 🟡 Vắng có phép 0 · ❌ Vắng không phép −5.<br><b>Chuyên cần</b> = số buổi có mặt hoặc đi trễ ÷ số buổi đã điểm danh. Việc giao cả lớp / cả ngành được tính điểm cho từng người khi đã điểm danh.'},
   {icon:'✨',title:'Phân công nhanh bằng AI',steps:[
     'Bấm nút <b>✨ AI</b> ở giữa thanh dưới.',
@@ -97,6 +98,7 @@ const guide=[
   {icon:'📁',title:'Họp tháng & tài liệu',steps:[
     '<b>Cá nhân → 📁 Họp tháng & tài liệu</b> (hoặc bấm thông báo / banner <b>Tài liệu mới</b> ở Trang chủ).',
     '<b>Ban Điều Hành</b>: bấm <b>＋ Tạo buổi họp</b> → mở buổi họp → <b>📷 Chụp ảnh</b> hoặc <b>📎 Thêm file</b> (Word, PDF, Excel, ảnh).',
+    '<b>✨ Tóm tắt bằng AI</b>: AI đọc ghi chú, ảnh chụp biên bản (kể cả viết tay), PDF và Word rồi viết các ý chính và <b>việc cần làm</b> để mọi người đọc nhanh.',
     'Đăng xong bấm <b>🔔 Báo cho các trưởng ngành</b> để mọi người nhận thông báo.',
     'Trưởng ngành bấm vào ảnh để xem lớn, bấm vào file để mở; Ban Điều Hành thấy ai <b>đã xem</b> / <b>chưa xem</b>.']},
   {icon:'🔐',title:'Quyền trong app',steps:[

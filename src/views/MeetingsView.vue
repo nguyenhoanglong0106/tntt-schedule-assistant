@@ -3,7 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useApp } from '@/composables/useApp'
 import { isNetworkError } from '@/services/attendanceOutbox'
-import { deleteMeeting, deleteMeetingFile, listMeetings, markMeetingViewed, MAX_FILE_MB, notifyMeeting, saveMeeting, uploadMeetingFile } from '@/services/meetingService'
+import { deleteMeeting, deleteMeetingFile, listMeetings, markMeetingViewed, MAX_FILE_MB, notifyMeeting, saveMeeting, summarizeMeeting, uploadMeetingFile } from '@/services/meetingService'
 import type { Meeting, MeetingFile } from '@/types'
 import { todayISO, weekdayLabel } from '@/utils/date'
 const router=useRouter();const {state,refresh,isSuper}=useApp()
@@ -86,6 +86,15 @@ async function notify(m:Meeting){
   finally{notifying.value=''}
 }
 
+// ── Ban điều hành: AI summary ────────────────────────────────────────────────
+const summarizing=ref('')
+async function summarize(m:Meeting){
+  summarizing.value=m.id
+  try{await summarizeMeeting(m.id);await load();openId.value=m.id;say('Đã tóm tắt xong')}
+  catch(e:any){say(isNetworkError(e)?'Mất mạng, chưa tóm tắt được':(e?.message??'AI chưa tóm tắt được'))}
+  finally{summarizing.value=''}
+}
+
 // ── Photo viewer ────────────────────────────────────────────────────────────
 const viewer=ref<{list:MeetingFile[];i:number}|null>(null)
 const shown=computed(()=>viewer.value?viewer.value.list[viewer.value.i]:null)
@@ -107,6 +116,13 @@ function step(d:number){if(!viewer.value)return;const n=viewer.value.list.length
   </button>
   <div v-if="openId===m.id" class="m-body">
     <p v-if="m.notes" class="notes">{{m.notes}}</p>
+    <div v-if="m.summary" class="ai-sum">
+      <div class="ai-head">✨ Tóm tắt bởi AI<small v-if="m.summarizedAt"> · {{fmtTime(m.summarizedAt)}}</small></div>
+      <ul><li v-for="(p,i) in m.summary.points" :key="i">{{p}}</li></ul>
+      <template v-if="m.summary.actions.length"><div class="ai-sub">✅ Việc cần làm</div>
+      <ul class="acts"><li v-for="(a,i) in m.summary.actions" :key="i"><b>{{a.task}}</b><span v-if="a.owner||a.due" class="who"> · {{[a.owner,a.due&&`hạn ${a.due}`].filter(Boolean).join(' · ')}}</span></li></ul></template>
+      <p class="ai-note">AI có thể đọc sai chữ viết tay. Khi cần chính xác, hãy xem tài liệu gốc bên dưới.</p>
+    </div>
     <div v-if="images(m).length" class="thumbs"><button v-for="(f,i) in images(m)" :key="f.id" class="thumb" @click="viewer={list:images(m),i}"><img v-if="f.url" :src="f.url" :alt="f.name" loading="lazy"/><span v-else>🖼️</span><span v-if="isSuper" class="rm" role="button" @click.stop="removeFile(f)">✕</span></button></div>
     <div v-if="docs(m).length" class="docs"><div v-for="f in docs(m)" :key="f.id" class="doc"><a :href="f.url??undefined" target="_blank" rel="noopener" :class="{off:!f.url}"><span class="ic">{{icon(f)}}</span><span class="dn"><b>{{f.name}}</b><small>{{size(f.size)}} · bấm để mở</small></span></a><button v-if="isSuper" class="rm-doc" @click="removeFile(f)">✕</button></div></div>
     <p v-if="!m.files.length" class="subtle">Chưa có tài liệu.</p>
@@ -117,6 +133,8 @@ function step(d:number){if(!viewer.value)return;const n=viewer.value.list.length
       </div>
       <p v-if="uploading?.meetingId===m.id" class="progress">⏳ Đang tải lên {{uploading.done+1}}/{{uploading.total}}…</p>
       <p class="hint">Word, PDF, Excel, PowerPoint hoặc ảnh, tối đa {{MAX_FILE_MB}} MB/file. Ảnh được tự thu nhỏ cho nhẹ.</p>
+      <button class="ai-btn" :disabled="summarizing===m.id||!!uploading||(!m.files.length&&!m.notes)" @click="summarize(m)">{{summarizing===m.id?'✨ AI đang đọc tài liệu… (khoảng 10–30 giây)':m.summary?'✨ Tóm tắt lại bằng AI':'✨ Tóm tắt bằng AI'}}</button>
+      <p v-if="m.summary?.skipped?.length" class="hint">AI chưa đọc được: {{m.summary.skipped.join(', ')}} (AI đọc được ảnh, PDF và Word).</p>
       <button class="notify" :disabled="notifying===m.id||!!uploading" @click="notify(m)">{{notifying===m.id?'Đang gửi…':'🔔 Báo cho các trưởng ngành'}}</button>
       <p v-if="m.notifiedAt" class="hint center">Đã báo lúc {{fmtTime(m.notifiedAt)}}</p>
       <div v-if="m.viewers?.length" class="viewers">
@@ -164,6 +182,8 @@ function step(d:number){if(!viewer.value)return;const n=viewer.value.list.length
 .new{flex:none;background:#dc2626;color:#fff;border-radius:999px;padding:1px 8px;font-size:.68rem;font-weight:900}
 .m-meta{font-size:.78rem;color:#64748b;font-weight:700}.chev{position:absolute;right:14px;top:50%;transform:translateY(-50%);color:#94a3b8}
 .m-body{padding:0 14px 14px;display:grid;gap:10px}
+.ai-sum{background:linear-gradient(135deg,#f5f3ff,#eff6ff);border:1px solid #ddd6fe;border-radius:14px;padding:11px 12px;display:grid;gap:6px;font-size:.86rem;line-height:1.5;color:#1e293b}.ai-head{font-weight:900;color:#5b21b6}.ai-head small{color:#7c3aed;font-weight:700}.ai-sum ul{margin:0;padding-left:18px;display:grid;gap:3px}.ai-sub{font-weight:900;color:#15803d;margin-top:4px}.acts .who{color:#64748b;font-weight:600}.ai-note{margin:2px 0 0;font-size:.72rem;color:#64748b}
+.ai-btn{border:0;background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;border-radius:12px;padding:12px;font-weight:900}.ai-btn:disabled{opacity:.6}
 .notes{margin:0;white-space:pre-wrap;font-size:.88rem;line-height:1.5;color:#334155;background:#f8fafc;border-radius:12px;padding:10px}
 .thumbs{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
 .thumb{position:relative;aspect-ratio:1;border:0;padding:0;border-radius:10px;overflow:hidden;background:#f1f5f9;display:grid;place-items:center;font-size:1.4rem}

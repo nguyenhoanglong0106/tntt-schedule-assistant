@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
+import MonthReportSheet from '@/components/MonthReportSheet.vue'
 import { useApp } from '@/composables/useApp'
 import { todayISO } from '@/utils/date'
 import { computeScores, PERIODS, periodRange, POINTS, STATUS_META, SUBSTITUTE_POINTS, type Period } from '@/utils/kpi'
@@ -21,9 +22,14 @@ const className=(id?:string|null)=>state.data?.classes.find(c=>c.id===id)?.name?
 const MEDALS=['🥇','🥈','🥉']
 const pct=(r:number|null)=>r===null?'—':`${Math.round(r*100)}%`
 const dm=(iso:string)=>`${iso.slice(8,10)}/${iso.slice(5,7)}`
+// Opened from the 1st-of-month notification (/kpi?report=YYYY-MM) or the button
+const route=useRoute()
+const reportMonth=ref<string|null>(typeof route.query.report==='string'?route.query.report:null)
+function closeReport(){reportMonth.value=null;if(route.query.report)router.replace('/kpi')}
 </script>
 <template><div class="page" v-if="state.data&&state.profile">
 <div class="page-head"><div><div class="eyebrow">ĐÁNH GIÁ</div><h1>🏆 Bảng siêng năng</h1></div><button class="back" @click="router.back()">‹ Quay lại</button></div>
+<button class="report-btn" @click="reportMonth=''"><span>📊 Báo cáo tháng <small>(ảnh gửi Zalo / đính kèm họp)</small></span><b>›</b></button>
 <div class="seg"><button v-for="p in PERIODS" :key="p.id" :class="{on:period===p.id}" @click="period=p.id">{{p.label}}</button></div>
 <div class="chips"><button :class="{on:!branchId}" @click="branchId=null">Cả Đoàn</button><button v-for="b in state.data.branches" :key="b.id" :class="{on:branchId===b.id}" :style="{'--c':b.colorHex}" @click="branchId=b.id">{{b.name}}</button></div>
 <div class="range">{{range.label}} · tính đến hôm nay</div>
@@ -58,8 +64,10 @@ const dm=(iso:string)=>`${iso.slice(8,10)}/${iso.slice(5,7)}`
   <div><span>🔄 Làm thay (đi trễ)</span><b>+{{SUBSTITUTE_POINTS.LATE}}</b></div>
   <p>Chuyên cần = số buổi có mặt hoặc đi trễ ÷ số buổi đã điểm danh. Phân công cho cả lớp không tính vào điểm cá nhân.</p>
 </section>
+<MonthReportSheet v-if="reportMonth!==null" :data="state.data" :profile="state.profile" :month="reportMonth||undefined" @close="closeReport"/>
 </div></template>
 <style scoped>
+.report-btn{width:100%;display:flex;justify-content:space-between;align-items:center;gap:8px;border:1px solid #c7d2fe;background:#eef2ff;color:#3730a3;border-radius:14px;padding:11px 14px;font-weight:900;margin-bottom:12px;text-align:left}.report-btn small{display:block;font-weight:600;color:#6366f1;font-size:.74rem;margin-top:2px}
 .back{border:0;background:#fff;border-radius:12px;padding:9px 11px;font-weight:800;color:#475569;box-shadow:0 4px 14px rgba(15,23,42,.06)}
 .seg{display:grid;grid-template-columns:repeat(3,1fr);background:#e2e8f0;border-radius:12px;padding:3px;gap:3px;margin-bottom:10px}.seg button{border:0;background:transparent;border-radius:10px;padding:8px 4px;font-weight:800;font-size:.82rem;color:#475569}.seg button.on{background:#fff;color:#1d4ed8;box-shadow:0 2px 6px rgba(15,23,42,.1)}
 .chips{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;margin-bottom:8px}.chips::-webkit-scrollbar{display:none}.chips button{white-space:nowrap;border:1px solid #e2e8f0;background:#fff;border-radius:999px;padding:6px 11px;font-size:.78rem;font-weight:700;color:#475569}.chips button.on{background:var(--c,#1d4ed8);border-color:var(--c,#1d4ed8);color:#fff}

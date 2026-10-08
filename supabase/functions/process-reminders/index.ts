@@ -99,8 +99,27 @@ Deno.serve(async (req) => {
       attendanceReminded += list.length
     }
 
+    // "Báo cáo tháng": from 08:00 on the 1st, tell Ban điều hành once that last month's report is ready
+    let monthReports = 0
+    const vnNow = new Date(now + 7 * 3600_000)
+    if (vnNow.getUTCDate() === 1 && vnHour >= 8) {
+      const prev = new Date(Date.UTC(vnNow.getUTCFullYear(), vnNow.getUTCMonth() - 1, 1))
+      const ym = `${prev.getUTCFullYear()}-${String(prev.getUTCMonth() + 1).padStart(2, '0')}`
+      const title = `📊 Báo cáo tháng ${prev.getUTCMonth() + 1}/${prev.getUTCFullYear()}`
+      const body = 'Báo cáo chuyên cần tháng trước đã sẵn sàng. Bấm để xem, gửi Zalo hoặc đính kèm vào buổi họp.'
+      const { data: supers } = await db.from('profiles').select('id').eq('role', 'SUPER_ADMIN')
+      for (const p of supers ?? []) {
+        // The notification row doubles as the "already sent" marker, so the 5-minute cron sends it once
+        const { count } = await db.from('notifications').select('id', { count: 'exact', head: true }).eq('user_id', p.id).eq('title', title)
+        if (count) continue
+        await db.from('notifications').insert({ user_id: p.id, title, body })
+        await pushToUser(p.id, { title, body, url: `/kpi?report=${ym}` })
+        monthReports++
+      }
+    }
+
     if (stats.errors.length) console.error('[process-reminders] push errors', stats.errors)
-    return json({ ok: true, delivered, attendance_reminded: attendanceReminded, sent: stats.sent, failed: stats.failed, push_configured: stats.configured, errors: stats.errors.slice(0, 5) })
+    return json({ ok: true, delivered, attendance_reminded: attendanceReminded, month_reports: monthReports, sent: stats.sent, failed: stats.failed, push_configured: stats.configured, errors: stats.errors.slice(0, 5) })
   } catch (e: any) {
     console.error('[process-reminders]', e)
     return json({ error: e?.message ?? 'Reminder error' }, 500)

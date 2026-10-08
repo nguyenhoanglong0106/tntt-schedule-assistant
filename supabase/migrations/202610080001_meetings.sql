@@ -6,6 +6,9 @@ create table if not exists public.meetings (
   notes text,
   -- Last time leaders were notified about it (the "Báo cho các trưởng ngành" button)
   notified_at timestamptz,
+  -- AI summary of the notes and attached files: {points: string[], actions: {task, owner, due}[]}
+  summary jsonb,
+  summarized_at timestamptz,
   created_by uuid references auth.users(id) default auth.uid(),
   created_at timestamptz not null default now()
 );

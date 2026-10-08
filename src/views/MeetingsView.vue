@@ -148,7 +148,7 @@ function step(d:number){if(!viewer.value)return;const n=viewer.value.list.length
 </div>
 <div v-if="toast" class="toast">{{toast}}</div>
 
-<div v-if="editing" class="overlay" @click.self="editing=null"><section class="sheet">
+<Teleport to="body"><div v-if="editing" class="overlay sheet-overlay" @click.self="editing=null"><section class="sheet">
   <div class="s-head"><strong>{{editing.id?'✏️ Sửa buổi họp':'📁 Tạo buổi họp'}}</strong><button class="x" @click="editing=null">✕</button></div>
   <div class="s-body">
     <label>Tên buổi họp<input v-model="editing.title" placeholder="Họp tháng 10/2026"/></label>
@@ -158,9 +158,9 @@ function step(d:number){if(!viewer.value)return;const n=viewer.value.list.length
     <p v-if="formError" class="err">{{formError}}</p>
   </div>
   <div class="s-foot"><button class="primary-btn" :disabled="busy" @click="submit">{{busy?'Đang lưu…':'💾 Lưu'}}</button></div>
-</section></div>
+</section></div></Teleport>
 
-<div v-if="viewer&&shown" class="photo" @click.self="viewer=null">
+<Teleport to="body"><div v-if="viewer&&shown" class="photo" @click.self="viewer=null">
   <button class="p-close" @click="viewer=null">✕</button>
   <img v-if="shown.url" :src="shown.url" :alt="shown.name"/>
   <div class="p-bar">
@@ -169,7 +169,7 @@ function step(d:number){if(!viewer.value)return;const n=viewer.value.list.length
     <a v-if="shown.url" :href="shown.url" target="_blank" rel="noopener">🔍 Phóng to / lưu</a>
     <button v-if="viewer.list.length>1" @click="step(1)">›</button>
   </div>
-</div>
+</div></Teleport>
 </div></template>
 <style scoped>
 .back{border:0;background:#fff;border-radius:12px;padding:9px 11px;font-weight:800;color:#475569;box-shadow:0 4px 14px rgba(15,23,42,.06)}
@@ -201,8 +201,7 @@ function step(d:number){if(!viewer.value)return;const n=viewer.value.list.length
 .viewers{background:#f8fafc;border-radius:12px;padding:10px;font-size:.8rem;line-height:1.5;color:#334155;display:grid;gap:4px}.not-yet{color:#b45309}
 .admin-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}.admin-row button{border:1px solid #e2e8f0;background:#fff;border-radius:12px;padding:10px;font-weight:800;color:#475569}.admin-row .danger{color:#b91c1c;border-color:#fecaca;background:#fef2f2}
 .toast{position:fixed;left:12px;right:12px;bottom:calc(var(--nav-h) + 12px);background:#0f172a;color:#fff;border-radius:14px;padding:12px 14px;font-size:.84rem;font-weight:700;z-index:60;box-shadow:0 10px 30px rgba(15,23,42,.3);max-width:560px;margin:0 auto}
-/* Sheet sized off the fixed overlay (iOS standalone reports vh taller than the screen); save pinned at the bottom */
-.overlay{position:fixed;inset:0;padding-top:calc(env(safe-area-inset-top) + 16px);background:rgba(15,23,42,.45);display:flex;align-items:flex-end;justify-content:center;z-index:50}
+/* Save pinned at the bottom of the sheet */
 .sheet{width:100%;max-width:560px;max-height:100%;background:#fff;border-radius:22px 22px 0 0;display:flex;flex-direction:column;overflow:hidden}
 .s-head{flex:none;display:flex;justify-content:space-between;align-items:center;padding:14px 14px 4px}.x{border:0;background:#f1f5f9;width:34px;height:34px;border-radius:50%}
 .s-body{flex:1;min-height:0;overflow-y:auto;padding:8px 14px;display:grid;gap:12px}
@@ -211,7 +210,7 @@ function step(d:number){if(!viewer.value)return;const n=viewer.value.list.length
 .s-body input[type=date]{min-height:44px}.s-body textarea{resize:vertical}
 .err{margin:0;color:#b91c1c;font-weight:700;font-size:.82rem}
 .s-foot{flex:none;padding:10px 14px calc(12px + env(safe-area-inset-bottom));border-top:1px solid #eef2f7}.s-foot .primary-btn{width:100%;padding:13px}
-.photo{position:fixed;inset:0;z-index:70;background:rgba(2,6,23,.95);display:flex;align-items:center;justify-content:center;padding:calc(env(safe-area-inset-top) + 52px) 8px calc(env(safe-area-inset-bottom) + 64px)}
+.photo{position:fixed;inset:0;z-index:110;background:rgba(2,6,23,.95);display:flex;align-items:center;justify-content:center;padding:calc(env(safe-area-inset-top) + 52px) 8px calc(env(safe-area-inset-bottom) + 64px)}
 .photo img{max-width:100%;max-height:100%;object-fit:contain;border-radius:6px}
 .p-close{position:absolute;top:calc(env(safe-area-inset-top) + 10px);right:12px;width:38px;height:38px;border-radius:50%;border:0;background:rgba(255,255,255,.15);color:#fff;font-size:1rem}
 .p-bar{position:absolute;left:0;right:0;bottom:calc(env(safe-area-inset-bottom) + 12px);display:flex;justify-content:center;align-items:center;gap:14px;color:#fff;font-weight:800;font-size:.86rem}

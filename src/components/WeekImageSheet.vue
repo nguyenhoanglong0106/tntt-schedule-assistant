@@ -31,15 +31,14 @@ function download(){
   done.value='Đã tải ảnh về máy. Mở Zalo và gửi ảnh từ thư viện.'
 }
 </script>
-<template><div class="overlay" @click.self="emit('close')"><section class="sheet">
+<template><Teleport to="body"><div class="overlay sheet-overlay" @click.self="emit('close')"><section class="sheet">
 <div class="head"><strong>🖼️ Ảnh lịch tuần</strong><button class="x" @click="emit('close')">✕</button></div>
 <div class="filters"><button :class="{on:!branchId}" @click="branchId=null">Cả Đoàn</button><button v-for="b in data.branches" :key="b.id" :class="{on:branchId===b.id}" :style="{'--c':b.colorHex}" @click="branchId=b.id">{{b.name}}</button></div>
 <div class="preview"><div v-if="busy&&!url" class="loading">Đang tạo ảnh…</div><p v-else-if="error" class="err">{{error}}</p><img v-else :src="url" :class="{dim:busy}" alt="Ảnh lịch tuần"></div>
 <p v-if="done" class="done">{{done}}</p>
 <div class="actions"><button v-if="canShare" class="primary-btn" :disabled="busy" @click="share">📤 Gửi Zalo / Chia sẻ</button><button :class="canShare?'secondary-btn':'primary-btn'" :disabled="busy||!url" @click="download">⬇️ Tải ảnh về</button></div>
-</section></div></template>
+</section></div></Teleport></template>
 <style scoped>
-.overlay{position:fixed;inset:0;padding-top:calc(env(safe-area-inset-top) + 16px);background:rgba(15,23,42,.45);display:flex;align-items:flex-end;justify-content:center;z-index:50}
 .sheet{width:100%;max-width:560px;max-height:100%;background:#fff;border-radius:22px 22px 0 0;padding:14px 14px calc(14px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:10px}
 .head{display:flex;justify-content:space-between;align-items:center}.x{border:0;background:#f1f5f9;width:34px;height:34px;border-radius:50%}
 .filters{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;flex:none}.filters::-webkit-scrollbar{display:none}

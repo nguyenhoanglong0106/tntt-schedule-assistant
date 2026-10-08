@@ -10,17 +10,21 @@ function save(){
   emit('save',{fullName:fullName.value.trim(),classId:classId.value||null})
 }
 </script>
-<template><div class="overlay" @click.self="emit('cancel')"><section class="sheet">
+<template><Teleport to="body"><div class="overlay sheet-overlay" @click.self="emit('cancel')"><section class="sheet">
 <div class="head"><strong>✏️ Thông tin thành viên</strong><button class="x" @click="emit('cancel')">✕</button></div>
+<div class="body">
 <label>Họ tên<input v-model="fullName" placeholder="Họ tên"></label>
 <label>Lớp<select v-model="classId"><option value="">Không chọn lớp</option><option v-for="c in classes" :key="c.id" :value="c.id">{{c.name}}</option></select></label>
 <p v-if="error" class="err">{{error}}</p>
-<button class="primary-btn" @click="save">💾 Lưu</button>
-</section></div></template>
+</div>
+<div class="foot"><button class="primary-btn" @click="save">💾 Lưu</button></div>
+</section></div></Teleport></template>
 <style scoped>
-.overlay{position:fixed;inset:0;padding-top:calc(env(safe-area-inset-top) + 16px);background:rgba(15,23,42,.45);display:flex;align-items:flex-end;justify-content:center;z-index:50}
-.sheet{width:100%;max-width:560px;max-height:100%;overflow:auto;background:#fff;border-radius:22px 22px 0 0;padding:14px 14px calc(14px + env(safe-area-inset-bottom));display:grid;gap:10px}
-.head{display:flex;justify-content:space-between;align-items:center}.x{border:0;background:#f1f5f9;width:34px;height:34px;border-radius:50%}
+.sheet{width:100%;max-width:560px;max-height:100%;background:#fff;border-radius:22px 22px 0 0;display:flex;flex-direction:column;overflow:hidden}
+/* Only the fields scroll; Save stays pinned at the bottom */
+.body{flex:1;min-height:0;overflow-y:auto;padding:10px 14px;display:grid;gap:10px;align-content:start}
+.foot{flex:none;padding:10px 14px calc(12px + env(safe-area-inset-bottom));border-top:1px solid #eef2f7}.foot .primary-btn{width:100%;padding:13px}
+.head{flex:none;padding:14px 14px 0;display:flex;justify-content:space-between;align-items:center}.x{border:0;background:#f1f5f9;width:34px;height:34px;border-radius:50%}
 label{display:grid;gap:5px;font-size:.8rem;font-weight:800;color:#475569}
 input,select{border:1px solid #dbe3ee;border-radius:11px;padding:10px;font-size:16px;font-weight:500;color:#0f172a;background:#fff;min-width:0}
 .err{margin:0;color:#b91c1c;font-size:.82rem;font-weight:700}

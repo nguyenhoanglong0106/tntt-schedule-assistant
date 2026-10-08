@@ -46,7 +46,7 @@ async function attach(){
   finally{attaching.value=false}
 }
 </script>
-<template><div class="overlay" @click.self="emit('close')"><section class="sheet">
+<template><Teleport to="body"><div class="overlay sheet-overlay" @click.self="emit('close')"><section class="sheet">
 <div class="head"><strong>📊 Báo cáo tháng</strong><button class="x" @click="emit('close')">✕</button></div>
 <div class="months"><button @click="month=shift(month,-1)">‹</button><strong>{{report.label}}</strong><button :disabled="month>=today.slice(0,7)" @click="month=shift(month,1)">›</button></div>
 <p class="note">ℹ️ Gồm số buổi, tỷ lệ điểm danh, chuyên cần từng ngành, top siêng năng và những người vắng nhiều (vắng ≥2 lần, hoặc vắng + phép ≥3 lần).<template v-if="month===today.slice(0,7)"> Tháng này chưa kết thúc nên số liệu chưa đủ.</template></p>
@@ -57,9 +57,8 @@ async function attach(){
   <button :class="canShare?'secondary-btn':'primary-btn'" :disabled="busy||!url" @click="download">⬇️ Tải ảnh về</button>
   <div v-if="isSuper&&meetings.length" class="attach"><select v-model="meetingId"><option v-for="m in meetings" :key="m.id" :value="m.id">📁 {{m.title}}</option></select><button :disabled="busy||attaching||!file" @click="attach">{{attaching?'Đang gửi…':'📎 Đính kèm'}}</button></div>
 </div>
-</section></div></template>
+</section></div></Teleport></template>
 <style scoped>
-.overlay{position:fixed;inset:0;padding-top:calc(env(safe-area-inset-top) + 16px);background:rgba(15,23,42,.45);display:flex;align-items:flex-end;justify-content:center;z-index:50}
 .sheet{width:100%;max-width:560px;max-height:100%;background:#fff;border-radius:22px 22px 0 0;padding:14px 14px calc(14px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:10px}
 .head{display:flex;justify-content:space-between;align-items:center}.x{border:0;background:#f1f5f9;width:34px;height:34px;border-radius:50%}
 .months{flex:none;display:flex;align-items:center;justify-content:space-between;gap:10px;background:#f8fafc;border-radius:14px;padding:6px}

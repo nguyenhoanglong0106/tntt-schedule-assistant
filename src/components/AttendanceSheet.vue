@@ -69,7 +69,7 @@ async function save(){
 }
 const dateLabel=`${props.schedule.date.slice(8,10)}/${props.schedule.date.slice(5,7)}`
 </script>
-<template><div class="overlay" @click.self="emit('close')"><section class="sheet">
+<template><Teleport to="body"><div class="overlay sheet-overlay" @click.self="emit('close')"><section class="sheet">
 <div class="head"><div><strong>📋 Điểm danh</strong><div class="sub">{{schedule.taskIcon}} {{schedule.taskName}} · {{dateLabel}} {{timeOf(schedule,data)??''}} · <span :style="{color:branch?.colorHex}">{{branch?.name}}</span></div></div><button class="x" @click="emit('close')">✕</button></div>
 <div class="body">
 <p class="note">ℹ️ <template v-if="isGroup">Việc giao <b>{{scope}}</b>: điểm danh <b>từng người</b>, mỗi người được tính điểm siêng năng riêng. </template>Mọi người mặc định <b>Có mặt</b>, chỉ cần bấm người vắng hoặc trễ. {{pointsNote}}</p>
@@ -93,10 +93,8 @@ const dateLabel=`${props.schedule.date.slice(8,10)}/${props.schedule.date.slice(
 </div>
 <div class="foot"><p v-if="error" class="err">{{error}}</p>
 <button class="primary-btn" :disabled="busy" @click="save">{{busy?'Đang lưu…':wasMarked?'💾 Cập nhật điểm danh':'💾 Lưu điểm danh'}}</button></div>
-</section></div></template>
+</section></div></Teleport></template>
 <style scoped>
-/* iOS home-screen apps report vh/dvh taller than the screen, so size the sheet off the fixed overlay */
-.overlay{position:fixed;inset:0;padding-top:calc(env(safe-area-inset-top) + 16px);background:rgba(15,23,42,.45);display:flex;align-items:flex-end;justify-content:center;z-index:50}
 .sheet{width:100%;max-width:560px;max-height:100%;background:#fff;border-radius:22px 22px 0 0;display:flex;flex-direction:column;overflow:hidden}
 /* Only the middle scrolls; the save button stays pinned to the bottom */
 .body{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:11px 14px;display:grid;gap:11px;align-content:start}

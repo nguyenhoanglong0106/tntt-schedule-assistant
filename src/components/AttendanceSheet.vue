@@ -38,6 +38,7 @@ const dateLabel=`${props.schedule.date.slice(8,10)}/${props.schedule.date.slice(
 </script>
 <template><div class="overlay" @click.self="emit('close')"><section class="sheet">
 <div class="head"><div><strong>📋 Điểm danh</strong><div class="sub">{{schedule.taskIcon}} {{schedule.taskName}} · {{dateLabel}} {{timeOf(schedule,data)??''}} · <span :style="{color:branch?.colorHex}">{{branch?.name}}</span></div></div><button class="x" @click="emit('close')">✕</button></div>
+<div class="body">
 <div class="tools"><span>{{rows.length}} người được phân công</span><button @click="allPresent">✅ Tất cả có mặt</button></div>
 <div class="list">
   <div v-for="r in rows" :key="r.key" class="person">
@@ -50,13 +51,18 @@ const dateLabel=`${props.schedule.date.slice(8,10)}/${props.schedule.date.slice(
   <div v-for="(s,i) in subs" :key="s.memberId" class="sub-row"><span>{{nameOf(s.memberId)}}</span><div class="seg small"><button :class="{on:s.status==='PRESENT'}" :style="{'--c':STATUS_META.PRESENT.color}" @click="s.status='PRESENT'">✅ Có mặt</button><button :class="{on:s.status==='LATE'}" :style="{'--c':STATUS_META.LATE.color}" @click="s.status='LATE'">⏰ Trễ</button></div><button class="rm" @click="subs.splice(i,1)">✕</button></div>
   <div class="add-sub"><select v-model="pick"><option value="">{{absentCount?'Chọn người đến làm thay…':'Chọn người làm thay (nếu có)…'}}</option><option v-for="m in candidates" :key="m.id" :value="m.id">{{m.fullName}}</option></select><button :disabled="!pick" @click="addSub">＋ Thêm</button></div>
 </div>
-<p v-if="error" class="err">{{error}}</p>
-<button class="primary-btn" :disabled="busy" @click="save">{{busy?'Đang lưu…':wasMarked?'💾 Cập nhật điểm danh':'💾 Lưu điểm danh'}}</button>
+</div>
+<div class="foot"><p v-if="error" class="err">{{error}}</p>
+<button class="primary-btn" :disabled="busy" @click="save">{{busy?'Đang lưu…':wasMarked?'💾 Cập nhật điểm danh':'💾 Lưu điểm danh'}}</button></div>
 </section></div></template>
 <style scoped>
-.overlay{position:fixed;inset:0;background:rgba(15,23,42,.45);display:flex;align-items:flex-end;justify-content:center;z-index:50}
-.sheet{width:100%;max-width:560px;max-height:92vh;max-height:92dvh;overflow:auto;background:#fff;border-radius:22px 22px 0 0;padding:14px 14px calc(14px + env(safe-area-inset-bottom));display:grid;gap:11px}
-.head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}.sub{font-size:.8rem;color:#64748b;margin-top:3px;font-weight:700}.x{border:0;background:#f1f5f9;width:34px;height:34px;border-radius:50%;flex:none}
+/* iOS home-screen apps report vh/dvh taller than the screen, so size the sheet off the fixed overlay */
+.overlay{position:fixed;inset:0;padding-top:calc(env(safe-area-inset-top) + 16px);background:rgba(15,23,42,.45);display:flex;align-items:flex-end;justify-content:center;z-index:50}
+.sheet{width:100%;max-width:560px;max-height:100%;background:#fff;border-radius:22px 22px 0 0;display:flex;flex-direction:column;overflow:hidden}
+/* Only the middle scrolls; the save button stays pinned to the bottom */
+.body{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:11px 14px;display:grid;gap:11px;align-content:start}
+.foot{flex:none;padding:10px 14px calc(12px + env(safe-area-inset-bottom));border-top:1px solid #eef2f7;display:grid;gap:8px}.foot .primary-btn{padding:13px 14px;font-size:.95rem}
+.head{flex:none;padding:14px 14px 0;display:flex;justify-content:space-between;align-items:flex-start;gap:10px}.sub{font-size:.8rem;color:#64748b;margin-top:3px;font-weight:700}.x{border:0;background:#f1f5f9;width:34px;height:34px;border-radius:50%;flex:none}
 .tools{display:flex;justify-content:space-between;align-items:center;font-size:.8rem;color:#64748b;font-weight:700}.tools button{border:1px solid #bbf7d0;background:#f0fdf4;color:#15803d;border-radius:999px;padding:6px 10px;font-weight:800;font-size:.76rem}
 .list{display:grid;gap:8px}.person{border:1px solid #e7edf5;border-radius:14px;padding:9px;display:grid;gap:7px}.name{font-weight:800;font-size:.92rem}.name small{color:#64748b;font-weight:600}
 .seg{display:grid;grid-template-columns:repeat(4,1fr);gap:5px}.seg.small{grid-template-columns:1fr 1fr}

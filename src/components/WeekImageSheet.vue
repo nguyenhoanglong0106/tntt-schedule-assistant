@@ -39,8 +39,8 @@ function download(){
 <div class="actions"><button v-if="canShare" class="primary-btn" :disabled="busy" @click="share">📤 Gửi Zalo / Chia sẻ</button><button :class="canShare?'secondary-btn':'primary-btn'" :disabled="busy||!url" @click="download">⬇️ Tải ảnh về</button></div>
 </section></div></template>
 <style scoped>
-.overlay{position:fixed;inset:0;background:rgba(15,23,42,.45);display:flex;align-items:flex-end;justify-content:center;z-index:50}
-.sheet{width:100%;max-width:560px;max-height:92vh;max-height:92dvh;background:#fff;border-radius:22px 22px 0 0;padding:14px 14px calc(14px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:10px}
+.overlay{position:fixed;inset:0;padding-top:calc(env(safe-area-inset-top) + 16px);background:rgba(15,23,42,.45);display:flex;align-items:flex-end;justify-content:center;z-index:50}
+.sheet{width:100%;max-width:560px;max-height:100%;background:#fff;border-radius:22px 22px 0 0;padding:14px 14px calc(14px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:10px}
 .head{display:flex;justify-content:space-between;align-items:center}.x{border:0;background:#f1f5f9;width:34px;height:34px;border-radius:50%}
 .filters{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;flex:none}.filters::-webkit-scrollbar{display:none}
 .filters button{white-space:nowrap;border:1px solid #e2e8f0;background:#fff;border-radius:999px;padding:6px 11px;font-size:.78rem;font-weight:700;color:#475569}

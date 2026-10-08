@@ -18,8 +18,8 @@ function save(){
 <button class="primary-btn" @click="save">💾 Lưu</button>
 </section></div></template>
 <style scoped>
-.overlay{position:fixed;inset:0;background:rgba(15,23,42,.45);display:flex;align-items:flex-end;justify-content:center;z-index:50}
-.sheet{width:100%;max-width:560px;max-height:92vh;max-height:92dvh;overflow:auto;background:#fff;border-radius:22px 22px 0 0;padding:14px 14px calc(14px + env(safe-area-inset-bottom));display:grid;gap:10px}
+.overlay{position:fixed;inset:0;padding-top:calc(env(safe-area-inset-top) + 16px);background:rgba(15,23,42,.45);display:flex;align-items:flex-end;justify-content:center;z-index:50}
+.sheet{width:100%;max-width:560px;max-height:100%;overflow:auto;background:#fff;border-radius:22px 22px 0 0;padding:14px 14px calc(14px + env(safe-area-inset-bottom));display:grid;gap:10px}
 .head{display:flex;justify-content:space-between;align-items:center}.x{border:0;background:#f1f5f9;width:34px;height:34px;border-radius:50%}
 label{display:grid;gap:5px;font-size:.8rem;font-weight:800;color:#475569}
 input,select{border:1px solid #dbe3ee;border-radius:11px;padding:10px;font-size:16px;font-weight:500;color:#0f172a;background:#fff;min-width:0}

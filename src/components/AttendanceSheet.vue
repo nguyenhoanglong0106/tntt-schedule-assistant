@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { saveAttendance } from '@/services/dataService'
+import { useApp } from '@/composables/useApp'
+import { saveAttendanceOrQueue } from '@/services/attendanceOutbox'
 import type { AppData, AttendanceStatus, Schedule } from '@/types'
 import { STATUS_META, timeOf } from '@/utils/kpi'
 const props=defineProps<{schedule:Schedule;data:AppData}>()
@@ -26,10 +27,12 @@ const busy=ref(false);const error=ref('')
 async function save(){
   busy.value=true;error.value=''
   try{
-    await saveAttendance(props.schedule.id,[
+    const result=await saveAttendanceOrQueue(props.schedule.id,[
       ...rows.value.map(r=>({memberId:r.memberId,classId:r.classId,status:r.status,isSubstitute:false})),
       ...subs.value.map(s=>({memberId:s.memberId,classId:null,status:s.status as AttendanceStatus,isSubstitute:true})),
     ])
+    // No signal: it is kept on the phone and sent later; show it as marked right away
+    if(result==='queued')useApp().applyPending()
     emit('saved')
   }catch(e:any){error.value=e?.message??'Không lưu được điểm danh'}
   finally{busy.value=false}

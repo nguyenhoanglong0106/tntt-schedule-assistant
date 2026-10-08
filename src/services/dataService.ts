@@ -1,3 +1,4 @@
+import { isAuthRetryableFetchError } from '@supabase/supabase-js'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase'
 import { makeDemoData } from '@/services/demoData'
 import type { AppData, Attendance, PendingAction, Profile, ReadingRotationConfig, Schedule } from '@/types'
@@ -25,7 +26,9 @@ export async function getCurrentProfile(): Promise<Profile | null> {
     localStorage.setItem(DEMO_PROFILE_KEY, JSON.stringify(p))
     return p
   }
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { user }, error: userError } = await supabase.auth.getUser()
+  // No signal is not "signed out": let the caller fall back to the cached profile
+  if (userError && isAuthRetryableFetchError(userError)) throw userError
   if (!user) return null
   const { data, error } = await supabase.from('profiles').select('id, full_name, role, branch_id').eq('id', user.id).maybeSingle()
   if (error) throw error

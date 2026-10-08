@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { isAuthRetryableFetchError } from '@supabase/supabase-js'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase'
 import HomeView from '@/views/HomeView.vue'
 const router=createRouter({history:createWebHistory(),routes:[
@@ -19,5 +20,6 @@ const router=createRouter({history:createWebHistory(),routes:[
  {path:'/guide',component:()=>import('@/views/GuideView.vue')},
  {path:'/login',component:()=>import('@/views/LoginView.vue'),meta:{hideNav:true}},
 ]})
-router.beforeEach(async(to:any)=>{if(!isSupabaseConfigured)return true;const session=(await supabase!.auth.getSession()).data.session;if(!session&&to.path!='/login')return'/login';if(session&&to.path==='/login')return'/';return true})
+// Offline, an expired token can't be refreshed and getSession reports no session; that is not a sign-out, so stay in the app
+router.beforeEach(async(to:any)=>{if(!isSupabaseConfigured)return true;const {data:{session},error}=await supabase!.auth.getSession();if(!session&&error&&isAuthRetryableFetchError(error))return to.path==='/login'?'/':true;if(!session&&to.path!='/login')return'/login';if(session&&to.path==='/login')return'/';return true})
 export default router

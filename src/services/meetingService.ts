@@ -172,3 +172,15 @@ export async function recentMeetings(limit = 6): Promise<{ id: string; title: st
   if (error) throw error
   return (data ?? []).map(m => ({ id: m.id, title: m.title, date: m.meeting_date }))
 }
+
+/** Latest meetings as plain text for the AI chat: notes, AI summary and file names (no links) */
+export async function meetingDigest(limit = 3): Promise<{ title: string; date: string; notes: string | null; summary: MeetingSummary | null; files: string[] }[]> {
+  if (!isSupabaseConfigured || !supabase) {
+    const d = readDemo()
+    return [...d.meetings].sort((a, b) => b.date.localeCompare(a.date)).slice(0, limit)
+      .map(m => ({ title: m.title, date: m.date, notes: m.notes, summary: m.summary ?? null, files: d.files.filter(f => f.meetingId === m.id).map(f => f.name) }))
+  }
+  const { data, error } = await supabase.from('meetings').select('title,meeting_date,notes,summary,meeting_files(name)').order('meeting_date', { ascending: false }).limit(limit)
+  if (error) throw error
+  return (data ?? []).map((m: any) => ({ title: m.title, date: m.meeting_date, notes: m.notes ? String(m.notes).slice(0, 1500) : null, summary: m.summary ?? null, files: (m.meeting_files ?? []).map((f: any) => f.name) }))
+}

@@ -54,6 +54,8 @@ Deno.serve(async(req)=>{
       }
     }
     const context={profile:profileR.data,branches:branchesR.data??[],task_types:tasksR.data??[],members:membersR.data??[],classes:classesR.data??[],schedules:schedulesR.data??[],reading_rotation:rotationR.data,branch_default_times:timesR.data??[],assignment_history_60d:[...counts.values()],week_start:weekStart,today:new Date(Date.now()+7*3600000).toISOString().slice(0,10),timezone:'Asia/Ho_Chi_Minh'}
+    // Attendance/diligence and meetings as the app computes them (same figures as its KPI screen); capped so an oversized body cannot blow up the prompt
+    if(body.insights&&typeof body.insights==='object'&&JSON.stringify(body.insights).length<120_000)(context as any).insights=body.insights
     const instructions=`Bạn là trợ lý phân công TNTT. Chỉ dùng dữ liệu CONTEXT, không bịa. Hiểu tiếng Việt tự nhiên.\n
 QUYỀN: SUPER_ADMIN sửa mọi ngành. BRANCH_ADMIN được đọc toàn bộ nhưng chỉ tạo/sửa/xóa lịch branch_id của mình.\n
 ĐỌC SÁCH: lịch rotation xác định Ngành theo tuần; nếu tạo/sửa READING phải dùng đúng Ngành của tuần.\n
@@ -72,7 +74,13 @@ Khi user hỏi lịch, trả answer từ schedules/context. Khi thay đổi nhi�
 HỘI THOẠI: các lượt trước là lịch sử; dùng để hiểu câu nối tiếp (vd "đổi sang T4", "thêm Đức nữa", "xóa cái đó") và tham chiếu đúng lịch vừa nói tới trong schedules.\n
 GIỜ: lịch có start_time rỗng thì giờ thực tế lấy từ branch_default_times (khớp task_type_id + branch_id). Khi trả lời luôn dùng giờ thực tế, dạng 24h HH:MM. Khi tạo lịch mà user không nói giờ thì để start_time rỗng.\n
 SOẠN TIN: khi user muốn soạn/tạo tin nhắn hoặc thông báo để gửi nhóm, trả kind=share. Văn bản thuần (không markdown, không **), gọn, có emoji; nhóm theo ngày dạng "Thứ 2 (28/09)"; mỗi dòng: giờ – công việc – người (không có người thì ghi "cả ngành"). BRANCH_ADMIN mặc định chỉ lấy lịch ngành mình trừ khi user nói khác. Không bịa lịch; không có lịch thì trả answer nói rõ.\n
-CÔNG BẰNG: khi user nhờ xếp/gợi ý người mà không nêu tên, chọn members của đúng ngành có số lần ít nhất trong assignment_history_60d cho công việc đó (không có trong danh sách = 0 lần); hòa thì ưu tiên last_date cũ nhất; không xếp một người 2 lần trong cùng tuần nếu còn người khác. Ghi lý do trong preview_lines, vd "Hoàng – 0 lần trong 60 ngày".`
+CÔNG BẰNG: khi user nhờ xếp/gợi ý người mà không nêu tên, chọn members của đúng ngành có số lần ít nhất trong assignment_history_60d cho công việc đó (không có trong danh sách = 0 lần); hòa thì ưu tiên last_date cũ nhất; không xếp một người 2 lần trong cùng tuần nếu còn người khác. Ghi lý do trong preview_lines, vd "Hoàng – 0 lần trong 60 ngày".
+
+ĐIỂM DANH & SIÊNG NĂNG: dùng CONTEXT.insights (attendance_this_month, attendance_school_year, last_month_report, unmarked_sessions; cách tính ở insights.scoring) để trả lời ai siêng năng, ai vắng nhiều, tỷ lệ chuyên cần, buổi nào chưa điểm danh. Nêu số liệu cụ thể (vd "vắng 3 buổi, chuyên cần 62%"). Nói về người vắng nhiều thì nhẹ nhàng, gợi ý hỏi han quan tâm chứ không phê bình. BRANCH_ADMIN mặc định nói về ngành mình trừ khi user hỏi khác. Không có insights thì nói chưa có dữ liệu điểm danh. Tin khen/tổng kết để gửi nhóm thì trả kind=share.
+
+HỌP THÁNG: CONTEXT.insights.meetings là các buổi họp gần nhất (ghi chú, summary.points, summary.actions gồm task/owner/due, tên file). Trả lời nội dung họp, việc cần làm, ai phụ trách, hạn chót; có thể soạn tin nhắc việc sau họp (kind=share). Không bịa nội dung không có trong đó.
+
+CHỈ ĐỌC: không có operation sửa điểm danh hay họp; nếu user muốn sửa, hướng dẫn vào trang Điểm danh hoặc Họp tháng.`
     const apiKey=Deno.env.get('GEMINI_API_KEY')
     if(!apiKey)return json({kind:'clarify',text:'AI chưa được cấu hình. Vui lòng liên hệ admin để thiết lập GEMINI_API_KEY.'})
     // Google retires/restricts model ids over time, so fall back to the next model on 404 or persistent overload.

@@ -23,6 +23,12 @@ const suggestions=computed(()=>{
   const branch=state.profile?.role==='BRANCH_ADMIN'?' của ngành mình':''
   return [
     {label:'📋 Soạn tin tuần này',q:`Soạn tin nhắn lịch tuần này${branch} để gửi nhóm`},
+    // These use the attendance / meeting figures the app sends along (aiInsights.ts)
+    {label:'🏆 Ai siêng năng nhất?',q:`Tháng này ai siêng năng nhất${branch}? Soạn tin khen ngắn để gửi nhóm`},
+    {label:'🙋 Ai hay vắng?',q:`Năm học này ai vắng nhiều${branch}? Gợi ý cách hỏi han nhẹ nhàng`},
+    {label:'📁 Việc cần làm sau họp',q:'Buổi họp gần nhất có những việc cần làm gì, ai phụ trách, hạn khi nào?'},
+    {label:'📊 Tổng kết tháng trước',q:'Tóm tắt chuyên cần tháng trước của từng ngành, ngành nào cần quan tâm?'},
+    {label:'📋 Buổi chưa điểm danh',q:'Còn những buổi nào chưa điểm danh?'},
     {label:'⚖️ Gợi ý người vệ sinh',q:'Gợi ý người làm vệ sinh tuần sau cho công bằng'},
     {label:'📖 Ai đọc sách?',q:'Tuần này ngành nào đọc sách, ai đọc ngày nào?'},
     {label:'🍦 Ai bán kem?',q:'Chủ nhật này ai bán kem, mấy giờ?'},

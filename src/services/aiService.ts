@@ -1,3 +1,4 @@
+import { buildAiInsights } from '@/services/aiInsights'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase'
 import { savePendingAction, getPendingAction, saveSchedule } from '@/services/dataService'
 import type { AppData, PendingAction, Profile, Schedule, TaskCode } from '@/types'
@@ -65,7 +66,8 @@ function demoCommand(message:string,data:AppData,profile:Profile):AiResult{
 
 export async function sendAiMessage(message:string,data:AppData,profile:Profile,history:ChatTurn[]=[]):Promise<AiResult>{
   if(isSupabaseConfigured&&supabase){
-    const{data:result,error}=await supabase.functions.invoke('ai-chat',{body:{message,history,week_start:startOfWeek(todayISO())}})
+    const insights=await buildAiInsights(data,profile,todayISO()).catch(()=>null)
+    const{data:result,error}=await supabase.functions.invoke('ai-chat',{body:{message,history,week_start:startOfWeek(todayISO()),insights}})
     if(error){
       if(error.message==='Unauthorized')throw new Error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.')
       throw new Error(error.message||'Không gọi được AI.')

@@ -152,7 +152,10 @@ Deno.serve(async (req) => {
       .not('status', 'in', '(CANCELLED,COMPLETED)')
       .is('attendance_reminded_at', null)
     if (ue) throw ue
-    const due = (unmarked ?? []).filter((s: any) => s.assignment_assignees?.length && !s.attendance?.length)
+    // Nobody picked = the whole branch, which is marked person by person too
+    const { data: activeMembers } = await db.from('members').select('branch_id').eq('active', true)
+    const branchesWithMembers = new Set((activeMembers ?? []).map((m: any) => m.branch_id))
+    const due = (unmarked ?? []).filter((s: any) => (s.assignment_assignees?.length || branchesWithMembers.has(s.branch_id)) && !s.attendance?.length)
     const byBranch = new Map<string, any[]>()
     for (const s of due) byBranch.set(s.branch_id, [...(byBranch.get(s.branch_id) ?? []), s])
     for (const [branchId, list] of byBranch) {

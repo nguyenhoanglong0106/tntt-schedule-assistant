@@ -34,12 +34,26 @@ export function hasStarted(s: Schedule, data: AppData, now = new Date()) {
 
 export const canMark = (s: Schedule, profile: Profile) => profile.role === 'SUPER_ADMIN' || s.branchId === profile.branchId
 
-/** Started, not cancelled, has someone assigned, within the last `days` days and not marked yet */
+/** A task given to a whole class, or to the whole branch (nobody picked), is marked person by person */
+export const isGroupTask = (s: Schedule) => !s.assignees.length || s.assignees.some(a => a.type === 'CLASS')
+
+/** Group members of a schedule, one entry per person: everyone in an assigned class, or the whole branch when nobody was picked */
+export function groupMembersOf(s: Schedule, data: AppData): { member: Member; group: string }[] {
+  const active = data.members.filter(m => m.active && m.branchId === s.branchId)
+  const className = (id?: string | null) => data.classes.find(c => c.id === id)?.name ?? 'Chưa xếp lớp'
+  if (!s.assignees.length) return active.map(member => ({ member, group: className(member.classId) }))
+  return s.assignees.filter(a => a.type === 'CLASS').flatMap(a => active.filter(m => m.classId === a.classId).map(member => ({ member, group: a.label })))
+}
+
+/** Is there anyone to mark? Named people, or members in the assigned class / branch */
+export const hasPeople = (s: Schedule, data: AppData) => s.assignees.length > 0 || data.members.some(m => m.active && m.branchId === s.branchId)
+
+/** Started, not cancelled, has someone to mark, within the last `days` days and not marked yet */
 export function pendingAttendance(data: AppData, profile: Profile, today: string, days = 30) {
   const marked = new Set(data.attendance.map(a => a.scheduleId))
   const from = addDays(today, -days)
   return data.schedules
-    .filter(s => s.date >= from && s.date <= today && s.status !== 'CANCELLED' && s.assignees.length && !marked.has(s.id) && canMark(s, profile) && hasStarted(s, data))
+    .filter(s => s.date >= from && s.date <= today && s.status !== 'CANCELLED' && hasPeople(s, data) && !marked.has(s.id) && canMark(s, profile) && hasStarted(s, data))
     .sort((a, b) => b.date.localeCompare(a.date) || (timeOf(b, data) ?? '').localeCompare(timeOf(a, data) ?? ''))
 }
 
@@ -60,9 +74,18 @@ export function computeScores(data: AppData, opts: { from: string; to: string; b
   const scores = members.map<MemberScore>(member => {
     const sessions: Session[] = []
     for (const s of schedules) {
-      if (!s.assignees.some(a => a.memberId === member.id)) continue
       const row = rows.find(r => r.scheduleId === s.id && r.memberId === member.id && !r.isSubstitute)
-      sessions.push({ schedule: s, status: row?.status ?? null, isSubstitute: false, points: row ? POINTS[row.status] : 0 })
+      if (s.assignees.some(a => a.memberId === member.id)) {
+        sessions.push({ schedule: s, status: row?.status ?? null, isSubstitute: false, points: row ? POINTS[row.status] : 0 })
+        continue
+      }
+      // Class / whole-branch tasks count per person, but only once marked: an unmarked branch activity
+      // would otherwise show as "chưa điểm danh" for everyone. Older class-level marks apply to each member.
+      const inClass = s.assignees.some(a => a.type === 'CLASS' && a.classId && a.classId === member.classId)
+      const inBranch = !s.assignees.length && s.branchId === member.branchId
+      if (!inClass && !inBranch) continue
+      const groupRow = row ?? (inClass ? rows.find(r => r.scheduleId === s.id && r.classId === member.classId && !r.isSubstitute) : undefined)
+      if (groupRow) sessions.push({ schedule: s, status: groupRow.status, isSubstitute: false, points: POINTS[groupRow.status] })
     }
     for (const r of rows) {
       if (r.memberId !== member.id || !r.isSubstitute) continue

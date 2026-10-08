@@ -41,3 +41,11 @@ export interface PendingAction {
   payload: Record<string, unknown>
   status: 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'EXPIRED'
 }
+export interface MeetingFile { id: string; meetingId: string; name: string; path: string; mime: string | null; size: number | null; createdAt: string; url: string | null }
+export interface MeetingViewer { userId: string; name: string; viewedAt: string | null }
+export interface Meeting {
+  id: string; title: string; date: string; notes: string | null; createdAt: string; notifiedAt: string | null
+  files: MeetingFile[]; viewedByMe: boolean
+  /** Ban điều hành only: every branch leader and when they opened it (null = not yet) */
+  viewers: MeetingViewer[] | null
+}

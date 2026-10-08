@@ -18,6 +18,7 @@ const router=createRouter({history:createWebHistory(),routes:[
  {path:'/attendance',component:()=>import('@/views/AttendanceView.vue')},
  {path:'/kpi',component:()=>import('@/views/KpiView.vue')},
  {path:'/guide',component:()=>import('@/views/GuideView.vue')},
+ {path:'/meetings',component:()=>import('@/views/MeetingsView.vue')},
  {path:'/login',component:()=>import('@/views/LoginView.vue'),meta:{hideNav:true}},
 ]})
 // Offline, an expired token can't be refreshed and getSession reports no session; that is not a sign-out, so stay in the app

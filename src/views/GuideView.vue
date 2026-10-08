@@ -68,14 +68,17 @@ const guide=[
     'Bấm <b>Điểm danh</b>: mọi người mặc định <b>✅ Có mặt</b>, chỉ cần đổi người <b>⏰ Trễ</b>, <b>🟡 Có phép</b> hoặc <b>❌ Vắng</b>.',
     'Có người đến làm thay? Chọn ở mục <b>🔄 Người làm thay</b> → <b>＋ Thêm</b>.',
     'Bấm <b>💾 Lưu điểm danh</b> — công việc chuyển sang “Hoàn thành”.',
-    'Điểm danh nhầm? Vào <b>Cá nhân → Điểm danh</b> → mục <b>Đã điểm danh</b> → bấm vào để sửa (trong 14 ngày).'],
+    'Việc giao <b>cả lớp</b> hoặc <b>cả ngành</b>: điểm danh <b>từng người</b> (xếp theo lớp, có nút <b>Cả nhóm có mặt</b> và ô tìm tên).',
+    'Điểm danh nhầm? Vào <b>Cá nhân → Điểm danh</b> → mục <b>Đã điểm danh</b> → bấm vào để sửa.',
+    'Quên điểm danh buổi cũ? Mục <b>📅 Điểm danh bù buổi cũ</b> → chọn ngày → bấm vào buổi đó. Điểm tính vào đúng ngày của buổi.',
+    'Mất sóng vẫn điểm danh được: app lưu tạm trên máy (nhãn <b>⏳ Chờ gửi</b>) và tự gửi khi có mạng lại.'],
    note:'Việc chưa tới giờ sẽ <b>chưa</b> hiện để điểm danh — ví dụ lịch bán kem Chủ nhật 06:00 chỉ điểm danh được từ 06:00 sáng Chủ nhật. Trưởng ngành điểm danh ngành mình; Ban Điều Hành điểm danh được mọi ngành.'},
   {icon:'🏆',title:'Bảng siêng năng',steps:[
     '<b>Cá nhân → 🏆 Bảng siêng năng</b>.',
     'Chọn thời gian: <b>Tháng này</b>, <b>Năm học</b> (01/09 → 31/08) hoặc <b>Năm nay</b>; chọn từng ngành hoặc cả Đoàn.',
     'Xem bục vinh danh 🥇🥈🥉, điểm, tỷ lệ chuyên cần và huy hiệu của từng người.',
     'Bấm vào tên để xem chi tiết từng buổi.'],
-   note:'<b>Cách tính điểm:</b> ✅ Có mặt +10 · 🔄 Làm thay +12 · ⏰ Đi trễ +5 · 🟡 Vắng có phép 0 · ❌ Vắng không phép −5.<br><b>Chuyên cần</b> = số buổi có mặt hoặc đi trễ ÷ số buổi đã điểm danh. Phân công cho cả lớp không tính vào điểm cá nhân.'},
+   note:'<b>Cách tính điểm:</b> ✅ Có mặt +10 · 🔄 Làm thay +12 · ⏰ Đi trễ +5 · 🟡 Vắng có phép 0 · ❌ Vắng không phép −5.<br><b>Chuyên cần</b> = số buổi có mặt hoặc đi trễ ÷ số buổi đã điểm danh. Việc giao cả lớp / cả ngành được tính điểm cho từng người khi đã điểm danh.'},
   {icon:'✨',title:'Phân công nhanh bằng AI',steps:[
     'Bấm nút <b>✨ AI</b> ở giữa thanh dưới.',
     'Gõ câu tự nhiên, ví dụ: <i>“T2 Minh Thư, T3 Đức đọc sách”</i> hoặc <i>“Chủ nhật này ai bán kem?”</i>.',
@@ -91,6 +94,11 @@ const guide=[
     '<b>Cá nhân → Thành viên</b>: thêm thành viên (＋) và lớp.',
     'Bấm vào <b>tên thành viên</b> để sửa họ tên hoặc đổi lớp.',
     'Không xóa được người đang có lịch trong tuần — hãy xóa lịch của họ trước.']},
+  {icon:'📁',title:'Họp tháng & tài liệu',steps:[
+    '<b>Cá nhân → 📁 Họp tháng & tài liệu</b> (hoặc bấm thông báo / banner <b>Tài liệu mới</b> ở Trang chủ).',
+    '<b>Ban Điều Hành</b>: bấm <b>＋ Tạo buổi họp</b> → mở buổi họp → <b>📷 Chụp ảnh</b> hoặc <b>📎 Thêm file</b> (Word, PDF, Excel, ảnh).',
+    'Đăng xong bấm <b>🔔 Báo cho các trưởng ngành</b> để mọi người nhận thông báo.',
+    'Trưởng ngành bấm vào ảnh để xem lớn, bấm vào file để mở; Ban Điều Hành thấy ai <b>đã xem</b> / <b>chưa xem</b>.']},
   {icon:'🔐',title:'Quyền trong app',steps:[
     '<b>Super Admin (Ban Điều Hành)</b>: tạo/sửa lịch và điểm danh mọi ngành, cài giờ gợi ý, vòng đọc sách, tạo Admin ngành.',
     '<b>Admin ngành</b>: xem lịch và bảng siêng năng của mọi ngành, nhưng chỉ tạo/sửa lịch và điểm danh ngành mình.']},

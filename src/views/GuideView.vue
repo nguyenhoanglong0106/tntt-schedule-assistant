@@ -1,12 +1,20 @@
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useApp } from '@/composables/useApp'
 import { datesOfWeek, todayISO } from '@/utils/date'
-import { pendingAttendance } from '@/utils/kpi'
+import { outboxIds } from '@/services/attendanceOutbox'
+import { latestUnseenMeeting, recentMeetings } from '@/services/meetingService'
+import { pendingAttendance, periodRange } from '@/utils/kpi'
 
 const router=useRouter();const {state,refresh}=useApp()
-onMounted(refresh)
+// Meeting tips need the server; quietly skipped offline
+const unseenMeeting=ref<{id:string;title:string}|null>(null);const latestMeetingDate=ref<string|null|undefined>(undefined)
+onMounted(()=>{
+  refresh()
+  latestUnseenMeeting().then(m=>unseenMeeting.value=m).catch(()=>undefined)
+  recentMeetings(1).then(l=>latestMeetingDate.value=l[0]?.date??null).catch(()=>undefined)
+})
 
 const pushOn=(()=>{try{return localStorage.getItem('tntt-push-on')==='1'&&typeof Notification!=='undefined'&&Notification.permission==='granted'}catch{return false}})()
 
@@ -18,6 +26,13 @@ const tips=computed(():Tip[]=>{
   const out:Tip[]=[]
   const toMark=pendingAttendance(d,p,todayISO()).length
   if(toMark)out.push({icon:'📋',text:`Có ${toMark} công việc đã diễn ra nhưng chưa điểm danh.`,action:'Điểm danh',to:'/reminders'})
+  // Older than the 30-day list, but still in this school year: only reachable through "Điểm danh bù"
+  const today=todayISO();const yearStart=periodRange('schoolYear',today).from
+  const sinceStart=Math.round((Date.parse(today)-Date.parse(yearStart))/86400000)
+  const older=sinceStart>30?pendingAttendance(d,p,today,sinceStart).length-toMark:0
+  if(older>0)out.push({icon:'📅',text:`Còn ${older} buổi cũ (quá 30 ngày) chưa điểm danh trong năm học này.`,action:'Điểm danh bù',to:'/attendance'})
+  if(outboxIds.value.length)out.push({icon:'⏳',text:`${outboxIds.value.length} buổi điểm danh lưu lúc mất mạng đang chờ gửi.`,action:'Xem',to:'/attendance'})
+  if(unseenMeeting.value)out.push({icon:'📁',text:`Có tài liệu họp mới: ${unseenMeeting.value.title}.`,action:'Xem',to:'/meetings'})
   if(!pushOn)out.push({icon:'🔔',text:'Bạn chưa bật thông báo trên thiết bị này — sẽ không nhận được nhắc việc.',action:'Bật ngay',to:'/reminders'})
   const week=datesOfWeek(todayISO())
   if(!d.schedules.some(s=>s.taskCode!=='READING'&&week.includes(s.date)&&mine(s.branchId)))out.push({icon:'📋',text:'Tuần này chưa có lịch công tác. Bạn có thể sao chép từ tuần trước.',action:'Mở Công tác',to:'/tasks'})
@@ -28,6 +43,11 @@ const tips=computed(():Tip[]=>{
     if(idle)out.push({icon:'📊',text:`${idle} thành viên của ngành chưa được phân công tháng này.`,action:'Thống kê',to:'/stats'})
   }
   if(p.role==='SUPER_ADMIN'){
+    const thisMonth=todayISO().slice(0,7),day=Number(todayISO().slice(8,10))
+    // The 1st-of-month report is most useful in the first week, e.g. to bring to the monthly meeting
+    if(day<=7){const last=new Date(Date.UTC(Number(thisMonth.slice(0,4)),Number(thisMonth.slice(5,7))-2,1));const ym=`${last.getUTCFullYear()}-${String(last.getUTCMonth()+1).padStart(2,'0')}`
+      out.push({icon:'📊',text:`Báo cáo tháng ${last.getUTCMonth()+1}/${last.getUTCFullYear()} đã sẵn sàng để gửi Zalo hoặc đính kèm vào buổi họp.`,action:'Xem báo cáo',to:`/kpi?report=${ym}`})}
+    if(latestMeetingDate.value!==undefined&&!latestMeetingDate.value?.startsWith(thisMonth))out.push({icon:'📁',text:'Tháng này chưa có buổi họp. Tạo buổi họp để đăng tài liệu và AI tóm tắt cho các trưởng ngành.',action:'Tạo buổi họp',to:'/meetings'})
     const missing=d.taskTypes.filter(t=>t.code!=='READING').flatMap(t=>d.branches.filter(b=>!d.taskTypeBranchTimes.some(x=>x.taskTypeId===t.id&&x.branchId===b.id))).length
     if(missing)out.push({icon:'⏰',text:`Còn ${missing} cặp công việc – ngành chưa có giờ gợi ý mặc định.`,action:'Cài giờ',to:'/branch-times'})
   }
@@ -61,7 +81,9 @@ const guide=[
     'Thông báo gửi tới trưởng ngành của lịch và Super Admin, đúng theo các mốc <b>nhắc trước</b> đã chọn.',
     'Nếu mốc nhắc đã qua khi tạo lịch, form sẽ cảnh báo để bạn chọn mốc gần hơn.',
     'Mỗi thiết bị cần bật thông báo riêng (điện thoại, máy tính…).',
-    '<b>21 giờ tối</b>, nếu việc trong ngày chưa được điểm danh, trưởng ngành nhận thông báo <i>“📋 Nhớ điểm danh nhé”</i>.'],
+    '<b>21 giờ tối</b>, nếu việc trong ngày chưa được điểm danh, trưởng ngành nhận thông báo <i>“📋 Nhớ điểm danh nhé”</i> (kể cả việc giao cả ngành).',
+    'Khi Ban Điều Hành đăng tài liệu họp và bấm <b>Báo cho các trưởng ngành</b>, bạn nhận thông báo <i>“📁 Họp tháng …”</i>.',
+    '<b>8 giờ sáng ngày 1</b> hằng tháng, Ban Điều Hành nhận thông báo <i>“📊 Báo cáo tháng …”</i>.'],
    note:'<b>iPhone:</b> mở web bằng Safari → Chia sẻ → <b>Thêm vào Màn hình chính</b> → mở app từ biểu tượng đó → bật thông báo và bấm Cho phép. Cần iOS 16.4 trở lên. Nếu biểu tượng app bị nền đen, hãy xóa app khỏi màn hình chính rồi thêm lại.'},
   {icon:'✅',title:'Điểm danh',steps:[
     'Sau giờ làm việc, công việc tự hiện trong khung <b>📋 Cần điểm danh</b> ở tab <b>Nhắc việc</b> và ở <b>Trang chủ</b>.',
@@ -102,8 +124,8 @@ const guide=[
     'Đăng xong bấm <b>🔔 Báo cho các trưởng ngành</b> để mọi người nhận thông báo.',
     'Trưởng ngành bấm vào ảnh để xem lớn, bấm vào file để mở; Ban Điều Hành thấy ai <b>đã xem</b> / <b>chưa xem</b>.']},
   {icon:'🔐',title:'Quyền trong app',steps:[
-    '<b>Super Admin (Ban Điều Hành)</b>: tạo/sửa lịch và điểm danh mọi ngành, cài giờ gợi ý, vòng đọc sách, tạo Admin ngành.',
-    '<b>Admin ngành</b>: xem lịch và bảng siêng năng của mọi ngành, nhưng chỉ tạo/sửa lịch và điểm danh ngành mình.']},
+    '<b>Super Admin (Ban Điều Hành)</b>: tạo/sửa lịch và điểm danh mọi ngành, cài giờ gợi ý, vòng đọc sách, tạo Admin ngành, đăng tài liệu họp tháng và dùng AI tóm tắt.',
+    '<b>Admin ngành</b>: xem lịch và bảng siêng năng của mọi ngành, nhưng chỉ tạo/sửa lịch và điểm danh ngành mình; xem tài liệu họp tháng.']},
 ]
 </script>
 <template><div class="page" v-if="state.data&&state.profile">

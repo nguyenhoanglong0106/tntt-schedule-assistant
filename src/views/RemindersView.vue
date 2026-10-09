@@ -24,7 +24,7 @@ function initialPushState():PushState{
   return Notification.permission==='granted'&&readFlag()?'on':'off'
 }
 const pushState=ref<PushState>(initialPushState());const pushBusy=ref(false);const pushError=ref('')
-const {state,refresh}=useApp()
+const {state,refresh,readOnly}=useApp()
 onMounted(()=>{
   refresh()
   // keep the server copy of this device's token fresh; only surface a change if it actually fails
@@ -49,7 +49,8 @@ const pushStatus=computed(()=>pushBusy.value
   ?(pushState.value==='on'?'Đang tắt…':'Đang bật…')
   :pushState.value==='on'?'Đang bật · nhận nhắc việc kể cả khi đóng app'
   :'Đang tắt · bật để nhận nhắc việc trên điện thoại')
-const upcoming=computed(()=>state.data?.schedules.filter(s=>s.date>=todayISO()&&s.status!=='COMPLETED'&&s.status!=='CANCELLED').sort((a,b)=>(a.date+(timeOf(a)??'99:99')).localeCompare(b.date+(timeOf(b)??'99:99'))).slice(0,30)??[])
+// Thư ký ngành follows its own branch
+const upcoming=computed(()=>state.data?.schedules.filter(s=>s.date>=todayISO()&&s.status!=='COMPLETED'&&s.status!=='CANCELLED'&&(!readOnly.value||s.branchId===state.profile?.branchId)).sort((a,b)=>(a.date+(timeOf(a)??'99:99')).localeCompare(b.date+(timeOf(b)??'99:99'))).slice(0,30)??[])
 // Group by day so the date is shown once as a heading
 const upcomingByDay=computed(()=>{const g:{date:string;items:Schedule[]}[]=[];for(const s of upcoming.value){const last=g[g.length-1];if(last?.date===s.date)last.items.push(s);else g.push({date:s.date,items:[s]})}return g})
 const WEEKDAYS=['Chủ nhật','Thứ 2','Thứ 3','Thứ 4','Thứ 5','Thứ 6','Thứ 7']

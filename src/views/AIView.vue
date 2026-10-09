@@ -6,7 +6,7 @@ import { useApp } from '@/composables/useApp'
 import { confirmAiAction, sendAiMessage } from '@/services/aiService'
 import type { PendingAction } from '@/types'
 import { startOfWeek, weekLabel, todayISO } from '@/utils/date'
-const {state,refresh}=useApp();const {messages,reset,history}=useAiChat()
+const {state,refresh,readOnly}=useApp();const {messages,reset,history}=useAiChat()
 const text=ref('');const busy=ref(false);const pending=ref<PendingAction|null>(null);const listening=ref(false);const copied=ref<number|null>(null);const chat=ref<HTMLElement|null>(null);const input=ref<HTMLTextAreaElement|null>(null)
 const scrollDown=(smooth=true)=>nextTick(()=>chat.value?.scrollTo({top:chat.value.scrollHeight,behavior:smooth?'smooth':'auto'}))
 onMounted(async()=>{scrollDown(false);await refresh();scrollDown(false)})
@@ -20,19 +20,21 @@ const time=(at?:number)=>at?new Date(at).toLocaleTimeString('vi-VN',{hour:'2-dig
 const lastOfGroup=(i:number)=>messages.value[i+1]?.from!==messages.value[i].from
 
 const suggestions=computed(()=>{
-  const branch=state.profile?.role==='BRANCH_ADMIN'?' của ngành mình':''
+  const branch=state.profile&&state.profile.role!=='SUPER_ADMIN'?' của ngành mình':''
   return [
     {label:'📋 Soạn tin tuần này',q:`Soạn tin nhắn lịch tuần này${branch} để gửi nhóm`},
     // These use the attendance / meeting figures the app sends along (aiInsights.ts)
     {label:'🏆 Ai siêng năng nhất?',q:`Tháng này ai siêng năng nhất${branch}? Soạn tin khen ngắn để gửi nhóm`},
     {label:'🙋 Ai hay vắng?',q:`Năm học này ai vắng nhiều${branch}? Gợi ý cách hỏi han nhẹ nhàng`},
-    {label:'📁 Việc cần làm sau họp',q:'Buổi họp gần nhất có những việc cần làm gì, ai phụ trách, hạn khi nào?'},
+    {lead:true,label:'📁 Việc cần làm sau họp',q:'Buổi họp gần nhất có những việc cần làm gì, ai phụ trách, hạn khi nào?'},
     {label:'📊 Tổng kết tháng trước',q:'Tóm tắt chuyên cần tháng trước của từng ngành, ngành nào cần quan tâm?'},
-    {label:'📋 Buổi chưa điểm danh',q:'Còn những buổi nào chưa điểm danh?'},
-    {label:'⚖️ Gợi ý người vệ sinh',q:'Gợi ý người làm vệ sinh tuần sau cho công bằng'},
+    {lead:true,label:'📋 Buổi chưa điểm danh',q:'Còn những buổi nào chưa điểm danh?'},
+    {label:'🍜 Ăn sáng CN này?',q:'Chủ nhật này ăn sáng món gì? Món nào đang dẫn, ngành nào chưa chọn món?'},
+    {lead:true,label:'⚖️ Gợi ý người vệ sinh',q:'Gợi ý người làm vệ sinh tuần sau cho công bằng'},
     {label:'📖 Ai đọc sách?',q:'Tuần này ngành nào đọc sách, ai đọc ngày nào?'},
     {label:'🍦 Ai bán kem?',q:'Chủ nhật này ai bán kem, mấy giờ?'},
-  ]
+  // Thư ký ngành cannot act on these (meetings, attendance, assigning people)
+  ].filter(c=>!readOnly.value||!(c as {lead?:boolean}).lead)
 })
 
 function autoGrow(){const el=input.value;if(!el)return;el.style.height='auto';el.style.height=`${Math.min(el.scrollHeight,110)}px`}
@@ -68,7 +70,7 @@ function mic(){const SR=(window as any).SpeechRecognition||(window as any).webki
 <main ref="chat" class="chat"><div class="thread">
   <div v-for="(m,i) in messages" :key="i" class="msg" :class="[m.from,{last:lastOfGroup(i)}]">
     <img v-if="m.from==='ai'" class="avatar" :class="{hide:!lastOfGroup(i)}" src="/ai-avatar.svg" alt="">
-    <div class="col"><div class="bubble" :class="{share:m.share}">{{m.text}}<button v-if="m.share" class="copy" @click="copy(i,m.text)">{{copied===i?'✓ Đã sao chép':'📋 Sao chép'}}</button><button v-if="m.retry&&i===messages.length-1" class="retry" :disabled="busy" @click="retry(i)">🔄 Thử lại</button></div><small v-if="lastOfGroup(i)&&m.at" class="time">{{time(m.at)}}</small></div>
+    <div class="col"><div class="bubble" :class="{share:m.share}">{{i===0&&readOnly?'Chào bạn 👋 Hãy hỏi về lịch của ngành (ai đọc sách, ai bán kem…), hoặc nhờ tôi soạn tin nhắn gửi nhóm.':m.text}}<button v-if="m.share" class="copy" @click="copy(i,m.text)">{{copied===i?'✓ Đã sao chép':'📋 Sao chép'}}</button><button v-if="m.retry&&i===messages.length-1" class="retry" :disabled="busy" @click="retry(i)">🔄 Thử lại</button></div><small v-if="lastOfGroup(i)&&m.at" class="time">{{time(m.at)}}</small></div>
   </div>
   <div v-if="busy" class="msg ai last"><img class="avatar" src="/ai-avatar.svg" alt=""><div class="col"><div class="bubble typing"><i></i><i></i><i></i></div></div></div>
 </div></main>

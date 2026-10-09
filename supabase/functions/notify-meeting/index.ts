@@ -22,7 +22,8 @@ Deno.serve(async (req) => {
     const files = (meeting.meeting_files ?? []).length
     const body = `Đã có ${files ? `${files} tài liệu` : 'nội dung'} cho buổi họp ngày ${d.slice(8, 10)}/${d.slice(5, 7)}. Bấm để xem.`
     const { pushToUser, stats } = makePusher(db)
-    const { data: profiles } = await db.from('profiles').select('id').neq('id', user.id)
+    // Meeting documents are for leaders, not for the read-only thư ký ngành login
+    const { data: profiles } = await db.from('profiles').select('id').neq('id', user.id).neq('role', 'BRANCH_SECRETARY')
     for (const p of profiles ?? []) {
       await db.from('notifications').insert({ user_id: p.id, title, body })
       await pushToUser(p.id, { title, body, url: '/meetings' })

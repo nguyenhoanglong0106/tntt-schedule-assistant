@@ -7,8 +7,9 @@ import { outboxIds } from '@/services/attendanceOutbox'
 import type { Schedule } from '@/types'
 import { addDays, todayISO, weekdayLabel } from '@/utils/date'
 import { canMark, hasPeople, hasStarted, pendingAttendance, STATUS_META, timeOf } from '@/utils/kpi'
-const router=useRouter();const {state,refresh}=useApp();const today=todayISO()
-onMounted(refresh)
+const router=useRouter();const {state,refresh,readOnly}=useApp();const today=todayISO()
+// Thư ký ngành cannot mark attendance
+onMounted(async()=>{await refresh();if(readOnly.value)router.replace('/')})
 const open=ref<Schedule|null>(null)
 const pending=computed(()=>state.data&&state.profile?pendingAttendance(state.data,state.profile,today):[])
 // Marked in the last 14 days, newest first, so a mistake can still be fixed

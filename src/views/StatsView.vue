@@ -4,11 +4,12 @@ import { useRouter } from 'vue-router'
 import { useApp } from '@/composables/useApp'
 import { addMonths, monthLabel, todayISO } from '@/utils/date'
 import { exportYearExcel, exportYears } from '@/utils/exportExcel'
+import { homeBranch } from '@/utils/roles'
 
 const router=useRouter();const {state,refresh}=useApp()
 const month=ref(todayISO().slice(0,7))
 // Everyone may view every branch ("xem chung"); branch admins start on their own branch.
-const ownBranch=()=>state.profile?.role==='BRANCH_ADMIN'?state.profile.branchId:null
+const ownBranch=()=>homeBranch(state.profile)
 const branchId=ref<string|null>(ownBranch())
 onMounted(async()=>{await refresh();branchId.value??=ownBranch()})
 const taskId=ref<string|null>(null)

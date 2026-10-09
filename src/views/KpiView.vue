@@ -5,9 +5,10 @@ import MonthReportSheet from '@/components/MonthReportSheet.vue'
 import { useApp } from '@/composables/useApp'
 import { todayISO } from '@/utils/date'
 import { computeScores, PERIODS, periodRange, POINTS, STATUS_META, SUBSTITUTE_POINTS, type Period } from '@/utils/kpi'
+import { homeBranch } from '@/utils/roles'
 const router=useRouter();const {state,refresh}=useApp();const today=todayISO()
 // Branch heads start on their own branch; everyone may look at the others
-const ownBranch=()=>state.profile?.role==='BRANCH_ADMIN'?state.profile.branchId:null
+const ownBranch=()=>homeBranch(state.profile)
 const branchId=ref<string|null>(ownBranch());const period=ref<Period>('schoolYear');const expanded=ref<string|null>(null);const showRules=ref(false)
 onMounted(async()=>{await refresh();branchId.value??=ownBranch()})
 const range=computed(()=>periodRange(period.value,today))

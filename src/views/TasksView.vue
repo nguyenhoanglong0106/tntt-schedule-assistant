@@ -3,18 +3,22 @@ import { computed, onMounted, ref } from 'vue'
 import BranchBadge from '@/components/BranchBadge.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import ScheduleEditor from '@/components/ScheduleEditor.vue'
+import ScopeToggle from '@/components/ScopeToggle.vue'
 import { useApp } from '@/composables/useApp'
 import { copyWeek, deleteSchedule, saveSchedule } from '@/services/dataService'
 import type { Schedule } from '@/types'
 import { addDays, datesOfWeek, formatShortDate, startOfWeek, todayISO, weekdayLabel, weekLabel } from '@/utils/date'
-const {state,refresh}=useApp();const cursor=ref(todayISO());const showEditor=ref(false);const editing=ref<Schedule|null>(null)
+import { canEditBranch } from '@/utils/roles'
+const {state,refresh,readOnly}=useApp();const cursor=ref(todayISO());const showEditor=ref(false);const editing=ref<Schedule|null>(null)
+// Thư ký ngành starts on its own branch
+const allBranches=ref(false);const mineOnly=computed(()=>readOnly.value&&!allBranches.value)
 onMounted(refresh)
 const days=computed(()=>datesOfWeek(cursor.value).filter(d=>itemsFor(d).length>0))
-const itemsFor=(d:string)=>state.data?.schedules.filter(s=>s.taskCode!=='READING'&&s.date===d).sort((a,b)=>(a.startTime||'99:99').localeCompare(b.startTime||'99:99'))??[]
+const itemsFor=(d:string)=>state.data?.schedules.filter(s=>s.taskCode!=='READING'&&s.date===d&&(!mineOnly.value||s.branchId===state.profile?.branchId)).sort((a,b)=>(a.startTime||'99:99').localeCompare(b.startTime||'99:99'))??[]
 function branchOf(s:Schedule){return state.data?.branches.find(b=>b.id===s.branchId)}
 // Schedules without their own time use the branch default (same rule as reminders).
 const timeOf=(s:Schedule)=>s.startTime??state.data?.taskTypeBranchTimes.find(t=>t.taskTypeId===s.taskTypeId&&t.branchId===s.branchId)?.startTime??null
-function canEdit(s:Schedule){return state.profile?.role==='SUPER_ADMIN'||s.branchId===state.profile?.branchId}
+const canEdit=(s:Schedule)=>canEditBranch(state.profile,s.branchId)
 async function save(payload:any){
   if(!state.profile)return
   await saveSchedule({id:payload.id,taskTypeId:payload.taskTypeId,taskCode:payload.taskCode,taskName:payload.taskName,taskIcon:payload.taskIcon,branchId:payload.branchId,date:payload.date,startTime:payload.startTime,status:'ASSIGNED',notes:null,assignees:payload.assignees,reminderOffsets:payload.reminders,createdBy:state.profile.id,completedAt:null,completedBy:null})
@@ -35,9 +39,10 @@ async function copyPrev(){
   finally{copying.value=false}
 }
 </script>
-<template><div class="page" v-if="state.data&&state.profile"><div class="page-head"><div><div class="eyebrow">CÔNG TÁC</div><h1>{{weekLabel(cursor)}}</h1></div><button class="primary-btn" @click="openCreate">＋ Tạo lịch</button></div>
+<template><div class="page" v-if="state.data&&state.profile"><div class="page-head"><div><div class="eyebrow">CÔNG TÁC</div><h1>{{weekLabel(cursor)}}</h1></div><button v-if="!readOnly" class="primary-btn" @click="openCreate">＋ Tạo lịch</button></div>
+<ScopeToggle v-if="readOnly" v-model="allBranches" :branch="state.data.branches.find(b=>b.id===state.profile?.branchId)"/>
 <div class="week-switch"><button @click="cursor=addDays(startOfWeek(cursor),-7)">‹</button><button @click="cursor=todayISO()">Tuần này</button><button @click="cursor=addDays(startOfWeek(cursor),7)">›</button></div>
-<button v-if="prevCount" class="copy-btn" :disabled="copying" @click="copyPrev">{{copying?'Đang sao chép…':`📋 Sao chép ${prevCount} lịch từ tuần trước`}}</button>
+<button v-if="prevCount&&!readOnly" class="copy-btn" :disabled="copying" @click="copyPrev">{{copying?'Đang sao chép…':`📋 Sao chép ${prevCount} lịch từ tuần trước`}}</button>
 <div class="agenda" v-if="days.length"><section v-for="d in days" :key="d" class="day"><div v-for="(s,i) in itemsFor(d)" :key="s.id" class="row"><div class="when"><template v-if="i===0"><strong>{{weekdayLabel(d)}}</strong><span>{{formatShortDate(d)}}</span></template><b>{{timeOf(s)||'--:--'}}</b></div><button class="agenda-item" :style="{'--c':branchOf(s)?.colorHex}" @click="canEdit(s)&&(editing=s,showEditor=true)"><div class="item-top"><strong class="item-title">{{s.taskIcon}} {{s.taskName}}</strong><BranchBadge small :branch="branchOf(s)"/></div><div class="item-who">👤 {{s.assignees.map(a=>a.label).join(', ')||'Cả ngành'}}</div></button></div></section></div>
 <EmptyState v-else title="Trống" text="Chưa có lịch công tác trong tuần này." />
 <ScheduleEditor v-if="showEditor" :data="state.data" :profile="state.profile" :existing="editing" :week-cursor="cursor" hide-reading @cancel="showEditor=false;editing=null" @save="save" @delete="editing&&remove(editing)"/></div></template>

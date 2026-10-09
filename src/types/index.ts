@@ -1,4 +1,4 @@
-export type Role = 'SUPER_ADMIN' | 'BRANCH_ADMIN'
+export type Role = 'SUPER_ADMIN' | 'BRANCH_ADMIN' | 'BRANCH_SECRETARY'
 export type TaskCode = string
 export type ScheduleStatus = 'UNASSIGNED' | 'ASSIGNED' | 'UPCOMING' | 'REMINDED' | 'COMPLETED' | 'MISSED' | 'CANCELLED'
 export type AssigneeType = 'MEMBER' | 'CLASS'
@@ -51,3 +51,8 @@ export interface Meeting {
   /** Ban điều hành only: every branch leader and when they opened it (null = not yet) */
   viewers: MeetingViewer[] | null
 }
+export interface BreakfastItem { id: string; name: string; note: string | null; active: boolean; sortOrder: number }
+export type BreakfastWeekStatus = 'OPEN' | 'SKIPPED' | 'ORDERED'
+export interface BreakfastWeek { weekDate: string; status: BreakfastWeekStatus; finalItemIds: string[]; note: string | null; orderedAt: string | null; notifiedAt: string | null }
+/** One branch's choice for a Sunday; itemIds are in order of preference (① ② ③) */
+export interface BreakfastBallot { weekDate: string; branchId: string; itemIds: string[]; headcount: number | null; updatedBy: string | null; updatedAt: string }

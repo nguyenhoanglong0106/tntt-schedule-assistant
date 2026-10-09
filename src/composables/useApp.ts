@@ -3,6 +3,7 @@ import { isSupabaseConfigured } from '@/lib/supabase'
 import { loadAppData, getCurrentProfile } from '@/services/dataService'
 import { applyOutbox, isNetworkError } from '@/services/attendanceOutbox'
 import type { AppData, Profile } from '@/types'
+import { isSecretary } from '@/utils/roles'
 
 // The last loaded data, so the app opens and attendance can be marked without signal
 const CACHE_KEY = 'tntt-data-cache-v1'
@@ -36,5 +37,5 @@ export function useApp(){
   }
   /** Re-applies waiting offline saves after one is queued, without a network round trip */
   const applyPending=()=>{if(state.data)state.data=applyOutbox(state.data)}
-  return {state,refresh,applyPending,isSuper:computed(()=>state.profile?.role==='SUPER_ADMIN')}
+  return {state,refresh,applyPending,isSuper:computed(()=>state.profile?.role==='SUPER_ADMIN'),readOnly:computed(()=>isSecretary(state.profile))}
 }

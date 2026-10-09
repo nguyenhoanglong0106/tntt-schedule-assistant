@@ -6,7 +6,7 @@ import { isNetworkError } from '@/services/attendanceOutbox'
 import { deleteMeeting, deleteMeetingFile, listMeetings, markMeetingViewed, MAX_FILE_MB, notifyMeeting, saveMeeting, summarizeMeeting, uploadMeetingFile } from '@/services/meetingService'
 import type { Meeting, MeetingFile } from '@/types'
 import { todayISO, weekdayLabel } from '@/utils/date'
-const router=useRouter();const {state,refresh,isSuper}=useApp()
+const router=useRouter();const {state,refresh,isSuper,readOnly}=useApp()
 const meetings=ref<Meeting[]>([]);const loading=ref(true);const loadError=ref('');const toast=ref('')
 const openId=ref<string|null>(null)
 async function load(){
@@ -22,6 +22,8 @@ function toggle(m:Meeting){
 }
 onMounted(async()=>{
   if(!state.profile)await refresh()
+  // Leaders' documents, not for the shared thư ký ngành login
+  if(readOnly.value){router.replace('/profile');return}
   await load()
   const latest=meetings.value[0];if(latest)toggle(latest)
 })

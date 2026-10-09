@@ -39,6 +39,7 @@ function demoCommand(message:string,data:AppData,profile:Profile):AiResult{
   for(const b of data.branches) if(n.includes(normalizeVi(b.name))) branchId=b.id
   if(taskCode==='READING') branchId=readingBranchForDate(currentWeek,data.rotation,data.branches)?.id??branchId
   if(!branchId)return{kind:'clarify',text:'Tôi chưa xác định được Ngành phụ trách.'}
+  if(profile.role==='BRANCH_SECRETARY')return{kind:'answer',text:'Tài khoản thư ký ngành chỉ xem được lịch, không thay đổi được. Hãy nhờ trưởng ngành nhé.'}
   if(profile.role==='BRANCH_ADMIN'&&branchId!==profile.branchId)return{kind:'answer',text:'Bạn có thể xem lịch Ngành khác nhưng chỉ được chỉnh sửa dữ liệu của Ngành mình.'}
 
   const drafts:Draft[]=[]

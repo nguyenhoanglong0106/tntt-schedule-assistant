@@ -1,5 +1,6 @@
 import type { AppData, AttendanceStatus, Member, Profile, Schedule } from '@/types'
 import { addDays } from './date'
+import { canEditBranch } from './roles'
 
 export const STATUS_META: Record<AttendanceStatus, { label: string; short: string; icon: string; color: string }> = {
   PRESENT: { label: 'Có mặt', short: 'Có mặt', icon: '✅', color: '#16a34a' },
@@ -32,7 +33,7 @@ export function hasStarted(s: Schedule, data: AppData, now = new Date()) {
   return new Date(`${s.date}T${t.slice(0, 5)}:00+07:00`).getTime() <= now.getTime()
 }
 
-export const canMark = (s: Schedule, profile: Profile) => profile.role === 'SUPER_ADMIN' || s.branchId === profile.branchId
+export const canMark = (s: Schedule, profile: Profile) => canEditBranch(profile, s.branchId)
 
 /** A task given to a whole class, or to the whole branch (nobody picked), is marked person by person */
 export const isGroupTask = (s: Schedule) => !s.assignees.length || s.assignees.some(a => a.type === 'CLASS')

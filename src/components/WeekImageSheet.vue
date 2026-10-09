@@ -2,10 +2,11 @@
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import type { AppData, Profile } from '@/types'
 import { renderWeekImage } from '@/utils/weekImage'
+import { homeBranch } from '@/utils/roles'
 const props=defineProps<{data:AppData;profile:Profile;weekStart:string}>()
 const emit=defineEmits<{close:[]}>()
 // Branch heads usually share their own branch; Ban Điều Hành the whole Đoàn
-const branchId=ref<string|null>(props.profile.role==='BRANCH_ADMIN'?props.profile.branchId:null)
+const branchId=ref<string|null>(homeBranch(props.profile))
 const url=ref('');const file=ref<File|null>(null);const busy=ref(false);const error=ref('');const done=ref('')
 const fileName=computed(()=>`lich-tuan-${props.weekStart}.png`)
 // Share needs the file ready beforehand: iOS drops the tap's permission if we render after the tap

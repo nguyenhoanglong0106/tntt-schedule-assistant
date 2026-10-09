@@ -5,16 +5,34 @@ import { useApp } from '@/composables/useApp'
 import { datesOfWeek, todayISO } from '@/utils/date'
 import { outboxIds } from '@/services/attendanceOutbox'
 import { latestUnseenMeeting, recentMeetings } from '@/services/meetingService'
+import { breakfastGlance } from '@/services/breakfastService'
+import { deadlineDay, isOpen, upcomingBreakfast } from '@/utils/breakfast'
 import { pendingAttendance, periodRange } from '@/utils/kpi'
+import { isSecretary } from '@/utils/roles'
+import BranchBadge from '@/components/BranchBadge.vue'
+import { secretaryInvite, secretaryLogins, type SecretaryLogin } from '@/services/accountService'
 
-const router=useRouter();const {state,refresh}=useApp()
-// Meeting tips need the server; quietly skipped offline
+const router=useRouter();const {state,refresh,isSuper,readOnly}=useApp()
+// Meeting and breakfast tips need the server; quietly skipped offline
 const unseenMeeting=ref<{id:string;title:string}|null>(null);const latestMeetingDate=ref<string|null|undefined>(undefined)
+const bfWeek=upcomingBreakfast(todayISO());const bf=ref<Awaited<ReturnType<typeof breakfastGlance>>|null>(null)
+// Thư ký ngành logins for the leader to pass on (own branch; every branch for Ban điều hành); null until loaded
+const logins=ref<SecretaryLogin[]|null>(null)
 onMounted(()=>{
-  refresh()
+  refresh().then(()=>{if(state.profile&&!readOnly.value)secretaryLogins(state.data?.branches??[]).then(l=>logins.value=l).catch(()=>undefined)})
   latestUnseenMeeting().then(m=>unseenMeeting.value=m).catch(()=>undefined)
   recentMeetings(1).then(l=>latestMeetingDate.value=l[0]?.date??null).catch(()=>undefined)
+  breakfastGlance(bfWeek).then(g=>bf.value=g).catch(()=>undefined)
 })
+const loginKey=(l:SecretaryLogin)=>`${l.branchId}:${l.username}`
+const branchOf=(id:string)=>state.data?.branches.find(b=>b.id===id)
+const shownPw=ref<string|null>(null);const copiedLogin=ref<string|null>(null)
+async function copyInvite(l:SecretaryLogin){
+  const t=secretaryInvite(l,branchOf(l.branchId)?.name??'',location.origin)
+  try{await navigator.clipboard.writeText(t)}
+  catch{const ta=document.createElement('textarea');ta.value=t;document.body.appendChild(ta);ta.select();document.execCommand('copy');ta.remove()}
+  const k=loginKey(l);copiedLogin.value=k;setTimeout(()=>{if(copiedLogin.value===k)copiedLogin.value=null},2500)
+}
 
 const pushOn=(()=>{try{return localStorage.getItem('tntt-push-on')==='1'&&typeof Notification!=='undefined'&&Notification.permission==='granted'}catch{return false}})()
 
@@ -33,9 +51,15 @@ const tips=computed(():Tip[]=>{
   if(older>0)out.push({icon:'📅',text:`Còn ${older} buổi cũ (quá 30 ngày) chưa điểm danh trong năm học này.`,action:'Điểm danh bù',to:'/attendance'})
   if(outboxIds.value.length)out.push({icon:'⏳',text:`${outboxIds.value.length} buổi điểm danh lưu lúc mất mạng đang chờ gửi.`,action:'Xem',to:'/attendance'})
   if(unseenMeeting.value)out.push({icon:'📁',text:`Có tài liệu họp mới: ${unseenMeeting.value.title}.`,action:'Xem',to:'/meetings'})
+  if(bf.value&&(bf.value.status?.status??'OPEN')==='OPEN'){
+    const g=bf.value,dm=(x:string)=>`${x.slice(8,10)}/${x.slice(5,7)}`
+    if(!g.menu){if(p.role==='SUPER_ADMIN')out.push({icon:'🍜',text:'Chưa có thực đơn ăn sáng Chủ nhật. Thêm món để các ngành chọn.',action:'Lập thực đơn',to:'/breakfast'})}
+    else if(isOpen(bfWeek)){if(p.role==='BRANCH_ADMIN'&&p.branchId&&!g.votedBranchIds.includes(p.branchId))out.push({icon:'🍜',text:`Ngành chưa chọn món ăn sáng Chủ nhật ${dm(bfWeek)}. Hạn chót thứ 6 ${dm(deadlineDay(bfWeek))}, 23:59.`,action:'Chọn món',to:'/breakfast'})}
+    else if(p.role==='SUPER_ADMIN')out.push({icon:'🍜',text:`Đã hết hạn chọn món ăn sáng Chủ nhật ${dm(bfWeek)}. Xem kết quả và chốt món để đặt.`,action:'Chốt món',to:'/breakfast'})
+  }
   if(!pushOn)out.push({icon:'🔔',text:'Bạn chưa bật thông báo trên thiết bị này — sẽ không nhận được nhắc việc.',action:'Bật ngay',to:'/reminders'})
   const week=datesOfWeek(todayISO())
-  if(!d.schedules.some(s=>s.taskCode!=='READING'&&week.includes(s.date)&&mine(s.branchId)))out.push({icon:'📋',text:'Tuần này chưa có lịch công tác. Bạn có thể sao chép từ tuần trước.',action:'Mở Công tác',to:'/tasks'})
+  if(!isSecretary(p)&&!d.schedules.some(s=>s.taskCode!=='READING'&&week.includes(s.date)&&mine(s.branchId)))out.push({icon:'📋',text:'Tuần này chưa có lịch công tác. Bạn có thể sao chép từ tuần trước.',action:'Mở Công tác',to:'/tasks'})
   if(p.role==='BRANCH_ADMIN'&&p.branchId){
     const month=todayISO().slice(0,7)
     const used=new Set(d.schedules.filter(s=>s.date.startsWith(month)).flatMap(s=>s.assignees.map(a=>a.memberId)))
@@ -78,12 +102,13 @@ const guide=[
     'Bấm <b>📤 Gửi Zalo / Chia sẻ</b> → chọn Zalo → chọn nhóm. Trên máy tính: bấm <b>⬇️ Tải ảnh về</b> rồi gửi ảnh.'],
    note:'Ảnh có logo Đoàn, tuần đọc sách, giờ – công việc – ngành – người phụ trách của từng ngày. Lịch đã hủy không hiện trong ảnh.'},
   {icon:'🔔',title:'Nhắc việc & thông báo',steps:[
-    'Thông báo gửi tới trưởng ngành của lịch và Super Admin, đúng theo các mốc <b>nhắc trước</b> đã chọn.',
+    'Thông báo gửi tới trưởng ngành, <b>thư ký ngành</b> của lịch và Super Admin, đúng theo các mốc <b>nhắc trước</b> đã chọn.',
     'Nếu mốc nhắc đã qua khi tạo lịch, form sẽ cảnh báo để bạn chọn mốc gần hơn.',
     'Mỗi thiết bị cần bật thông báo riêng (điện thoại, máy tính…).',
     '<b>21 giờ tối</b>, nếu việc trong ngày chưa được điểm danh, trưởng ngành nhận thông báo <i>“📋 Nhớ điểm danh nhé”</i> (kể cả việc giao cả ngành).',
     'Khi Ban Điều Hành đăng tài liệu họp và bấm <b>Báo cho các trưởng ngành</b>, bạn nhận thông báo <i>“📁 Họp tháng …”</i>.',
-    '<b>8 giờ sáng ngày 1</b> hằng tháng, Ban Điều Hành nhận thông báo <i>“📊 Báo cáo tháng …”</i>.'],
+    '<b>8 giờ sáng ngày 1</b> hằng tháng, Ban Điều Hành nhận thông báo <i>“📊 Báo cáo tháng …”</i>.',
+    '<b>Ăn sáng Chủ nhật</b>: ngành chưa chọn món được nhắc lúc <b>19:00</b> từ thứ 2 đến thứ 5 và <b>08:00 thứ 6</b> (hạn chót); <b>07:00 thứ 7</b> Ban Điều Hành nhận kết quả; khi chốt món, mọi người nhận <i>“🍜 Ăn sáng CN …”</i>.'],
    note:'<b>iPhone:</b> mở web bằng Safari → Chia sẻ → <b>Thêm vào Màn hình chính</b> → mở app từ biểu tượng đó → bật thông báo và bấm Cho phép. Cần iOS 16.4 trở lên. Nếu biểu tượng app bị nền đen, hãy xóa app khỏi màn hình chính rồi thêm lại.'},
   {icon:'✅',title:'Điểm danh',steps:[
     'Sau giờ làm việc, công việc tự hiện trong khung <b>📋 Cần điểm danh</b> ở tab <b>Nhắc việc</b> và ở <b>Trang chủ</b>.',
@@ -123,9 +148,24 @@ const guide=[
     '<b>✨ Tóm tắt bằng AI</b>: AI đọc ghi chú, ảnh chụp biên bản (kể cả viết tay), PDF và Word rồi viết các ý chính và <b>việc cần làm</b> để mọi người đọc nhanh.',
     'Đăng xong bấm <b>🔔 Báo cho các trưởng ngành</b> để mọi người nhận thông báo.',
     'Trưởng ngành bấm vào ảnh để xem lớn, bấm vào file để mở; Ban Điều Hành thấy ai <b>đã xem</b> / <b>chưa xem</b>.']},
+  {icon:'🍜',title:'Ăn sáng Chủ nhật',steps:[
+    '<b>Cá nhân → 🍜 Ăn sáng Chủ nhật</b> (hoặc bấm banner ở Trang chủ / thông báo nhắc).',
+    'Ăn sáng chung lúc <b>08:00 mỗi Chủ nhật</b>. Mỗi ngành có <b>1 phiếu</b>: bấm chọn <b>2–3 món</b> theo thứ tự thích nhất (món bấm trước là ①), nhập <b>số người ăn</b> rồi bấm <b>💾 Lưu lựa chọn</b>.',
+    'Sửa thoải mái tới <b>23:59 thứ 6</b>. Qua hạn phiếu bị khoá; cần đổi thì nhờ Ban Điều Hành.',
+    'Bảng <b>📊 Kết quả</b> hiện % của từng món, ngành nào chọn món gì, tổng số suất và ngành chưa chọn.',
+    '<b>Ban Điều Hành</b>: lập <b>🍽️ Thực đơn</b> (thêm, sửa, ẩn món), <b>chọn hộ</b> ngành nhờ, bấm <b>✅ Chốt món & báo mọi người</b> rồi đặt đồ ăn, hoặc <b>😴 Tuần này nghỉ</b> khi lễ, trại.'],
+   note:'<b>Cách xếp hạng:</b> % = số ngành chọn món ÷ số ngành đã chọn. Bằng % thì so <b>điểm ưu tiên</b> (① 3 điểm, ② 2, ③ 1); vẫn bằng thì món <b>lâu chưa ăn</b> nhất đứng trước. Chọn 2–3 món giúp kết quả ít bị hoà dù chỉ có 5 ngành.'},
+  {icon:'👀',title:'Tài khoản thư ký ngành',steps:[
+    'Mỗi ngành có thể có <b>1 tài khoản thư ký</b> dùng chung để các thành viên trong ngành theo dõi lịch. Ban Điều Hành tạo ở <b>Cá nhân → ➕ Tạo tài khoản ngành → 👀 Thư ký ngành</b>.',
+    '<b>Trưởng ngành</b> xem <b>tên đăng nhập và mật khẩu</b> ở mục <b>👀 Tài khoản thư ký ngành</b> ngay phía trên trang này (bấm <b>Hiện</b> để xem mật khẩu), rồi bấm <b>📋 Sao chép tin gửi thành viên</b> và dán vào nhóm Zalo của ngành.',
+    'Thành viên đăng nhập tài khoản thư ký trên điện thoại của mình (nhiều máy cùng lúc được), rồi vào <b>Nhắc việc</b> bật <b>Thông báo điện thoại</b> trên từng máy.',
+    'Xem được lịch <b>Công tác</b>, <b>Lịch</b> (có đọc sách), lịch sắp tới, thành viên, bảng siêng năng và món ăn sáng. Mặc định hiện <b>ngành mình</b>; bấm <b>Cả Đoàn</b> để xem các ngành khác.',
+    'Nhận <b>thông báo nhắc việc</b> của ngành giống trưởng ngành.',
+    '<b>Chỉ xem</b>: không tạo/sửa lịch, không điểm danh, không chọn món, không xem tài liệu họp tháng. Muốn thay đổi gì, hãy nhờ trưởng ngành.']},
   {icon:'🔐',title:'Quyền trong app',steps:[
-    '<b>Super Admin (Ban Điều Hành)</b>: tạo/sửa lịch và điểm danh mọi ngành, cài giờ gợi ý, vòng đọc sách, tạo Admin ngành, đăng tài liệu họp tháng và dùng AI tóm tắt.',
-    '<b>Admin ngành</b>: xem lịch và bảng siêng năng của mọi ngành, nhưng chỉ tạo/sửa lịch và điểm danh ngành mình; xem tài liệu họp tháng.']},
+    '<b>Super Admin (Ban Điều Hành)</b>: tạo/sửa lịch và điểm danh mọi ngành, cài giờ gợi ý, vòng đọc sách, tạo tài khoản Admin ngành và Thư ký ngành, đăng tài liệu họp tháng và dùng AI tóm tắt, lập thực đơn và chốt món ăn sáng.',
+    '<b>Admin ngành</b>: xem lịch và bảng siêng năng của mọi ngành, nhưng chỉ tạo/sửa lịch và điểm danh ngành mình; xem tài liệu họp tháng; chọn món ăn sáng cho ngành mình.',
+    '<b>Thư ký ngành</b>: chỉ xem lịch và nhận thông báo nhắc việc của ngành mình (tài khoản dùng chung cho thành viên).']},
 ]
 </script>
 <template><div class="page" v-if="state.data&&state.profile">
@@ -133,7 +173,26 @@ const guide=[
 <h2 class="first">💡 Gợi ý cho bạn</h2>
 <div v-if="tips.length" class="stack"><div v-for="t in tips" :key="t.text" class="tip"><span class="tip-icon">{{t.icon}}</span><p>{{t.text}}</p><button @click="router.push(t.to)">{{t.action}}</button></div></div>
 <div v-else class="surface ok">✅ Mọi thứ đều ổn — không có gì cần xử lý.</div>
+<template v-if="logins">
+<h2>👀 Tài khoản thư ký ngành</h2>
+<details class="surface accts" :open="!isSuper"><summary><span>{{isSuper?`Tài khoản thư ký các ngành (${logins.length})`:'Gửi cho thành viên trong ngành'}}</span><b>›</b></summary>
+  <p class="acct-intro">Thành viên đăng nhập tài khoản này để <b>xem lịch</b> công tác, đọc sách của ngành và <b>nhận thông báo nhắc việc</b>. Tài khoản chỉ xem, không sửa được gì.</p>
+  <div v-for="l in logins" :key="loginKey(l)" class="acct">
+    <BranchBadge small :branch="branchOf(l.branchId)"/>
+    <div class="cred"><span>Tên đăng nhập</span><b>{{l.username}}</b></div>
+    <div class="cred"><span>Mật khẩu</span><b>{{shownPw===loginKey(l)?l.password:'••••••••'}}</b><button class="eye" @click="shownPw=shownPw===loginKey(l)?null:loginKey(l)">{{shownPw===loginKey(l)?'Ẩn':'Hiện'}}</button></div>
+    <button class="invite" :class="{done:copiedLogin===loginKey(l)}" @click="copyInvite(l)">{{copiedLogin===loginKey(l)?'✓ Đã sao chép, dán vào nhóm Zalo ngành':'📋 Sao chép tin gửi thành viên'}}</button>
+  </div>
+  <p v-if="!logins.length" class="acct-none">{{isSuper?'Chưa ngành nào có tài khoản thư ký. Tạo ở Cá nhân → ➕ Tạo tài khoản ngành → 👀 Thư ký ngành.':'Ngành chưa có tài khoản thư ký. Nhờ Ban Điều Hành tạo giúp.'}}</p>
+</details>
+</template>
 <h2>📘 Hướng dẫn sử dụng</h2>
 <div class="stack"><details v-for="(g,i) in guide" :key="g.title" class="surface sec" :open="i===0"><summary><span>{{g.icon}} {{g.title}}</span><b>›</b></summary><ol><li v-for="s in g.steps" :key="s" v-html="s"></li></ol><p v-if="g.note" class="note" v-html="g.note"></p></details></div>
 </div></template>
-<style scoped>.back{border:1px solid #e2e8f0;background:#fff;border-radius:12px;padding:8px 12px;font-weight:700;color:#475569}.first{margin-top:4px}.tip{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:10px;background:#fff;border:1px solid #e7edf5;border-radius:15px;padding:11px 12px}.tip-icon{font-size:1.2rem}.tip p{margin:0;font-size:.85rem;color:#334155;line-height:1.4}.tip button{border:0;background:#eff6ff;color:#1d4ed8;border-radius:10px;padding:7px 10px;font-weight:800;font-size:.78rem;white-space:nowrap}.ok{color:#166534;font-weight:600;font-size:.9rem}.sec{padding:0}.sec summary{list-style:none;display:flex;justify-content:space-between;align-items:center;padding:14px 15px;font-weight:800;cursor:pointer}.sec summary::-webkit-details-marker{display:none}.sec summary b{color:#94a3b8;transition:transform .2s}.sec[open] summary b{transform:rotate(90deg)}.sec ol{margin:0;padding:0 16px 4px 34px;display:grid;gap:7px;font-size:.87rem;color:#334155;line-height:1.45}.note{margin:8px 15px 14px;background:#f8fafc;border-radius:11px;padding:9px 11px;font-size:.8rem;color:#475569;line-height:1.45}.sec ol:last-child{padding-bottom:14px}</style>
+<style scoped>.back{border:1px solid #e2e8f0;background:#fff;border-radius:12px;padding:8px 12px;font-weight:700;color:#475569}.first{margin-top:4px}.tip{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:10px;background:#fff;border:1px solid #e7edf5;border-radius:15px;padding:11px 12px}.tip-icon{font-size:1.2rem}.tip p{margin:0;font-size:.85rem;color:#334155;line-height:1.4}.tip button{border:0;background:#eff6ff;color:#1d4ed8;border-radius:10px;padding:7px 10px;font-weight:800;font-size:.78rem;white-space:nowrap}.ok{color:#166534;font-weight:600;font-size:.9rem}.sec{padding:0}.sec summary{list-style:none;display:flex;justify-content:space-between;align-items:center;padding:14px 15px;font-weight:800;cursor:pointer}.sec summary::-webkit-details-marker{display:none}.sec summary b{color:#94a3b8;transition:transform .2s}.sec[open] summary b{transform:rotate(90deg)}.sec ol{margin:0;padding:0 16px 4px 34px;display:grid;gap:7px;font-size:.87rem;color:#334155;line-height:1.45}.note{margin:8px 15px 14px;background:#f8fafc;border-radius:11px;padding:9px 11px;font-size:.8rem;color:#475569;line-height:1.45}.sec ol:last-child{padding-bottom:14px}
+.accts{padding:0}.accts summary{list-style:none;display:flex;justify-content:space-between;align-items:center;padding:14px 15px;font-weight:800;cursor:pointer}.accts summary::-webkit-details-marker{display:none}.accts summary b{color:#94a3b8;transition:transform .2s}.accts[open] summary b{transform:rotate(90deg)}
+.acct-intro{margin:0 15px 10px;font-size:.8rem;color:#475569;line-height:1.45}.acct-none{margin:0 15px 14px;font-size:.84rem;color:#64748b}
+.acct{margin:0 15px 12px;border:1px solid #bbf7d0;background:#f0fdf4;border-radius:14px;padding:11px 12px;display:grid;gap:7px}
+.cred{display:flex;align-items:center;gap:8px;font-size:.84rem;min-width:0}.cred span{flex:none;width:96px;color:#64748b;font-weight:700}.cred b{flex:1;min-width:0;overflow-wrap:anywhere;font-size:.95rem;color:#0f172a;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.eye{flex:none;border:1px solid #bbf7d0;background:#fff;color:#166534;border-radius:9px;padding:5px 10px;font-weight:800;font-size:.76rem}
+.invite{border:0;background:#16a34a;color:#fff;border-radius:11px;padding:10px;font-weight:800;font-size:.84rem}.invite.done{background:#15803d}</style>

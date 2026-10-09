@@ -1,6 +1,7 @@
 import { corsHeaders, json } from '../_shared/cors.ts'
 import { serviceClient } from '../_shared/clients.ts'
 import { makePusher } from '../_shared/push.ts'
+import { addDaysISO, ddmm, rankDishes } from '../_shared/breakfast.ts'
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
@@ -37,6 +38,7 @@ Deno.serve(async (req) => {
     const startOf = (s: any): string | null => s.start_time
       ?? (branchTimes ?? []).find((t: any) => t.task_type_id === s.task_type_id && t.branch_id === s.branch_id)?.start_time
       ?? null
+    // Everyone on the branch, its thư ký ngành included (members follow reminders there), plus Ban điều hành
     async function notifyBranch(s: any, title: string, body: string, url: string) {
       const { data: profiles } = await db.from('profiles').select('id').or(`role.eq.SUPER_ADMIN,branch_id.eq.${s.branch_id}`)
       for (const p of profiles ?? []) {
@@ -85,8 +87,8 @@ Deno.serve(async (req) => {
     const byBranch = new Map<string, any[]>()
     for (const s of due) byBranch.set(s.branch_id, [...(byBranch.get(s.branch_id) ?? []), s])
     for (const [branchId, list] of byBranch) {
-      // Branch admins mark their own branch; fall back to super admins when the branch has none
-      let { data: admins } = await db.from('profiles').select('id').eq('branch_id', branchId)
+      // Branch admins mark their own branch (not its read-only thư ký); fall back to super admins when the branch has none
+      let { data: admins } = await db.from('profiles').select('id').eq('branch_id', branchId).neq('role', 'BRANCH_SECRETARY')
       if (!admins?.length) ({ data: admins } = await db.from('profiles').select('id').eq('role', 'SUPER_ADMIN'))
       const what = list.map((s: any) => `${s.task_types?.name ?? 'Công việc'}${(startOf(s) ?? '').slice(0, 5) ? ' ' + startOf(s)!.slice(0, 5) : ''}${s.scheduled_date === today ? '' : ` (${s.scheduled_date.slice(8, 10)}/${s.scheduled_date.slice(5, 7)})`}`).join(', ')
       const title = '📋 Nhớ điểm danh nhé'
@@ -118,8 +120,73 @@ Deno.serve(async (req) => {
       }
     }
 
+    // "Ăn sáng Chủ nhật 08:00": once a day remind branches that haven't chosen for the coming Sunday
+    // (Mon–Thu from 19:00; Friday, the deadline day, from 08:00), then from 07:00 Saturday send Ban điều hành the result
+    let breakfastReminded = 0, breakfastResults = 0
+    const dow = vnNow.getUTCDay()
+    const sunday = addDaysISO(today, dow === 0 ? 7 : 7 - dow)
+    const nagDue = (dow >= 1 && dow <= 4 && vnHour >= 19 && vnHour < 22) || (dow === 5 && vnHour >= 8)
+    const resultsDue = dow === 6 && vnHour >= 7
+    if (nagDue || resultsDue) {
+      const [{ data: menu }, { data: week }, { data: ballots }] = await Promise.all([
+        db.from('breakfast_menu_items').select('id,name,active'),
+        db.from('breakfast_weeks').select('status,results_sent_at').eq('week_date', sunday).maybeSingle(),
+        db.from('breakfast_ballots').select('branch_id,item_ids,headcount').eq('week_date', sunday),
+      ])
+      // Nothing to choose from, the week is off, or Ban điều hành already ordered
+      if ((menu ?? []).some((m: any) => m.active) && !['SKIPPED', 'ORDERED'].includes(week?.status)) {
+        const voted = new Set((ballots ?? []).map((b: any) => b.branch_id))
+        if (nagDue) {
+          const { data: leaders } = await db.from('profiles').select('id,branch_id').eq('role', 'BRANCH_ADMIN')
+          const friday = dow === 5
+          const title = friday ? '⏰ Hôm nay là hạn chót chọn món ăn sáng' : `🍜 Chọn món ăn sáng CN ${ddmm(sunday)}`
+          const body = friday
+            ? `Ngành mình chưa chọn món cho Chủ nhật ${ddmm(sunday)}. Chọn trước 23:59 tối nay nhé.`
+            : `Ngành mình chưa chọn món. Hạn chót: thứ 6 ${ddmm(addDaysISO(sunday, -2))}, 23:59. Bấm để chọn 2–3 món.`
+          for (const branchId of new Set((leaders ?? []).map((l: any) => l.branch_id).filter((b: string) => b && !voted.has(b)))) {
+            // Claim today's marker first, so overlapping cron runs cannot send twice
+            const { data: claimed } = await db.from('breakfast_reminders')
+              .upsert({ week_date: sunday, branch_id: branchId, sent_on: today }, { onConflict: 'week_date,branch_id,sent_on', ignoreDuplicates: true })
+              .select('branch_id')
+            if (!claimed?.length) continue
+            for (const p of (leaders ?? []).filter((l: any) => l.branch_id === branchId)) {
+              await db.from('notifications').insert({ user_id: p.id, title, body })
+              await pushToUser(p.id, { title, body, url: '/breakfast' })
+            }
+            breakfastReminded++
+          }
+        }
+        if (resultsDue && !week?.results_sent_at) {
+          await db.from('breakfast_weeks').upsert({ week_date: sunday }, { onConflict: 'week_date', ignoreDuplicates: true })
+          const { data: claimed } = await db.from('breakfast_weeks').update({ results_sent_at: new Date().toISOString() })
+            .eq('week_date', sunday).is('results_sent_at', null).select('week_date')
+          if (claimed?.length) {
+            const [{ data: branches }, { data: history }] = await Promise.all([
+              db.from('branches').select('id,name').order('rotation_index'),
+              db.from('breakfast_weeks').select('week_date,final_item_ids').eq('status', 'ORDERED').lt('week_date', sunday).order('week_date', { ascending: false }).limit(26),
+            ])
+            const lastServed: Record<string, string> = {}
+            for (const w of history ?? []) for (const id of w.final_item_ids ?? []) lastServed[id] ??= w.week_date
+            const { rows, voters } = rankDishes(menu ?? [], ballots ?? [], lastServed)
+            const missing = (branches ?? []).filter((b: any) => !voted.has(b.id)).map((b: any) => b.name)
+            const meals = (ballots ?? []).reduce((s: number, b: any) => s + (b.headcount ?? 0), 0)
+            const title = `🍜 Kết quả chọn món ăn sáng CN ${ddmm(sunday)}`
+            const body = voters
+              ? `${rows.slice(0, 3).map(r => `${r.name} ${r.percent}%`).join(' · ')} (${voters}/${(branches ?? []).length} ngành${meals ? `, ${meals} suất` : ''}).${missing.length ? ` Chưa chọn: ${missing.join(', ')}.` : ''} Bấm để chốt món.`
+              : 'Chưa ngành nào chọn món. Bấm để chọn hộ hoặc chốt món.'
+            const { data: supers } = await db.from('profiles').select('id').eq('role', 'SUPER_ADMIN')
+            for (const p of supers ?? []) {
+              await db.from('notifications').insert({ user_id: p.id, title, body })
+              await pushToUser(p.id, { title, body, url: '/breakfast' })
+              breakfastResults++
+            }
+          }
+        }
+      }
+    }
+
     if (stats.errors.length) console.error('[process-reminders] push errors', stats.errors)
-    return json({ ok: true, delivered, attendance_reminded: attendanceReminded, month_reports: monthReports, sent: stats.sent, failed: stats.failed, push_configured: stats.configured, errors: stats.errors.slice(0, 5) })
+    return json({ ok: true, delivered, attendance_reminded: attendanceReminded, month_reports: monthReports, breakfast_reminded: breakfastReminded, breakfast_results: breakfastResults, sent: stats.sent, failed: stats.failed, push_configured: stats.configured, errors: stats.errors.slice(0, 5) })
   } catch (e: any) {
     console.error('[process-reminders]', e)
     return json({ error: e?.message ?? 'Reminder error' }, 500)

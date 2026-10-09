@@ -57,7 +57,7 @@ Deno.serve(async(req)=>{
     // Attendance/diligence and meetings as the app computes them (same figures as its KPI screen); capped so an oversized body cannot blow up the prompt
     if(body.insights&&typeof body.insights==='object'&&JSON.stringify(body.insights).length<120_000)(context as any).insights=body.insights
     const instructions=`Bạn là trợ lý phân công TNTT. Chỉ dùng dữ liệu CONTEXT, không bịa. Hiểu tiếng Việt tự nhiên.\n
-QUYỀN: SUPER_ADMIN sửa mọi ngành. BRANCH_ADMIN được đọc toàn bộ nhưng chỉ tạo/sửa/xóa lịch branch_id của mình.\n
+QUYỀN: SUPER_ADMIN sửa mọi ngành. BRANCH_ADMIN được đọc toàn bộ nhưng chỉ tạo/sửa/xóa lịch branch_id của mình. BRANCH_SECRETARY (thư ký ngành, tài khoản dùng chung cho thành viên) CHỈ XEM: không bao giờ trả kind=action, được nhờ thay đổi thì trả answer bảo nhờ trưởng ngành; mặc định nói về ngành branch_id của mình như BRANCH_ADMIN.\n
 ĐỌC SÁCH: lịch rotation xác định Ngành theo tuần; nếu tạo/sửa READING phải dùng đúng Ngành của tuần.\n
 AN TOÀN: KHÔNG được tự ghi DB. Nếu user yêu cầu thay đổi, trả kind=action để hệ thống tạo preview chờ xác nhận. Nếu tên người/lớp mơ hồ hoặc thiếu dữ kiện quan trọng, trả kind=clarify.\n
 Chỉ trả JSON hợp lệ, không markdown. Một trong 3 dạng:\n
@@ -80,7 +80,9 @@ CÔNG BẰNG: khi user nhờ xếp/gợi ý người mà không nêu tên, chọ
 
 HỌP THÁNG: CONTEXT.insights.meetings là các buổi họp gần nhất (ghi chú, summary.points, summary.actions gồm task/owner/due, tên file). Trả lời nội dung họp, việc cần làm, ai phụ trách, hạn chót; có thể soạn tin nhắc việc sau họp (kind=share). Không bịa nội dung không có trong đó.
 
-CHỈ ĐỌC: không có operation sửa điểm danh hay họp; nếu user muốn sửa, hướng dẫn vào trang Điểm danh hoặc Họp tháng.`
+ĂN SÁNG: CONTEXT.insights.breakfast là bữa ăn sáng chung Chủ nhật tới lúc 08:00 (sunday, deadline = thứ 6 23:59, choosing_open, status OPEN/ORDERED/SKIPPED, ordered_dishes khi đã chốt, results xếp theo percent = số ngành chọn ÷ số ngành đã chọn rồi points (ưu tiên 1 = 3 điểm, 2 = 2, 3 = 1), not_chosen, headcount_total/headcount_by_branch = số suất). Trả lời CN này ăn gì, món nào đang dẫn, ngành nào chưa chọn, tổng bao nhiêu suất; có thể soạn tin nhắc các ngành chọn món hoặc báo món đã chốt (kind=share). status=SKIPPED nghĩa là tuần đó nghỉ ăn sáng.
+
+CHỈ ĐỌC: không có operation sửa điểm danh, họp hay chọn món ăn sáng; nếu user muốn sửa, hướng dẫn vào trang Điểm danh, Họp tháng hoặc Cá nhân → 🍜 Ăn sáng Chủ nhật.`
     const apiKey=Deno.env.get('GEMINI_API_KEY')
     if(!apiKey)return json({kind:'clarify',text:'AI chưa được cấu hình. Vui lòng liên hệ admin để thiết lập GEMINI_API_KEY.'})
     // Google retires/restricts model ids over time, so fall back to the next model on 404 or persistent overload.
@@ -125,6 +127,8 @@ CHỈ ĐỌC: không có operation sửa điểm danh hay họp; nếu user mu�
     let parsed
     try{parsed=JSON.parse(stripJson(text))}catch{return json({kind:'clarify',text:'AI trả về định dạng không hợp lệ. Vui lòng thử lại.'})}
     if(parsed.kind==='answer'||parsed.kind==='clarify'||parsed.kind==='share')return json({kind:parsed.kind,text:String(parsed.text??'')})
+    // Thư ký ngành is read-only; the database refuses its changes anyway, so never show it a confirm button
+    if(profileR.data?.role==='BRANCH_SECRETARY')return json({kind:'answer',text:'Tài khoản thư ký ngành chỉ xem được lịch, không thay đổi được. Hãy nhờ trưởng ngành nhé.'})
     if(parsed.kind!=='action'||!Array.isArray(parsed.operations)||!parsed.operations.length)return json({kind:'clarify',text:'Tôi chưa tạo được thao tác an toàn. Vui lòng nói rõ hơn.'})
     const profile=profileR.data;const branchIds=new Set((branchesR.data??[]).map((x:any)=>x.id));const taskIds=new Set((tasksR.data??[]).map((x:any)=>x.id));const memberMap=new Map((membersR.data??[]).map((x:any)=>[x.id,x]));const classMap=new Map((classesR.data??[]).map((x:any)=>[x.id,x]));
     for(const op of parsed.operations){

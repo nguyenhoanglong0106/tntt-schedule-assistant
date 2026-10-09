@@ -1,5 +1,5 @@
 import { corsHeaders, json } from '../_shared/cors.ts'
-import { requireUser } from '../_shared/clients.ts'
+import { requireUser, serviceClient } from '../_shared/clients.ts'
 
 Deno.serve(async(req)=>{
   if(req.method==='OPTIONS')return new Response('ok',{headers:corsHeaders})
@@ -13,6 +13,9 @@ Deno.serve(async(req)=>{
         {onConflict:'user_id,fcm_token'}
       )
       if(error)return json({error:error.message},500)
+      // A phone belongs to the account that last turned notifications on there: drop it from accounts used on it before
+      // (e.g. a leader who tried the shared thư ký login), or it would get both accounts' reminders
+      await serviceClient().from('push_subscriptions').delete().eq('fcm_token',token).neq('user_id',user.id)
       return json({ok:true})
     }
     if(req.method==='DELETE'){

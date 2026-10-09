@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import UserAvatar from '@/components/UserAvatar.vue'
 import { useApp } from '@/composables/useApp'
 import { supabase } from '@/lib/supabase'
 import type { Role } from '@/types'
@@ -22,10 +23,10 @@ async function createAdmin(){if(!supabase||!username.value||!password.value||!fu
 <input v-model="fullName" :placeholder="role==='BRANCH_ADMIN'?'Họ tên':'Tên hiển thị, VD: Thư ký Ngành Thiếu'"/><input v-model="username" type="text" autocapitalize="off" :placeholder="role==='BRANCH_ADMIN'?'Tên đăng nhập':'Tên đăng nhập, VD: thuky.thieu'"/><input v-model="password" :type="role==='BRANCH_SECRETARY'?'text':'password'" placeholder="Mật khẩu ban đầu" autocomplete="new-password"/><select v-model="branchId"><option value="">Chọn Ngành</option><option v-for="b in state.data.branches" :key="b.id" :value="b.id">{{b.name}}</option></select>
 <p v-if="existingSecretary" class="warn">⚠️ Ngành này đã có tài khoản thư ký: <b>{{existingSecretary.fullName}}</b>. Thường mỗi ngành chỉ cần 1 tài khoản, các thành viên đăng nhập chung.</p>
 <button class="primary-btn" :disabled="creating" @click="createAdmin">{{creating?'Đang tạo…':role==='BRANCH_ADMIN'?'Tạo tài khoản Admin':'Tạo tài khoản Thư ký'}}</button><div class="msg" :class="{err:failed}" v-if="message">{{message}}</div></section>
-<template v-if="accounts.length"><h2>Tài khoản hiện có</h2><div class="stack"><div v-for="b in state.data.branches" :key="b.id" class="surface acc" :style="{'--c':b.colorHex}"><strong><i></i>{{b.name}}</strong><span v-for="a in accountsOf(b.id)" :key="a.fullName+a.role">{{a.fullName}} <small :class="{sec:a.role==='BRANCH_SECRETARY'}">{{ROLE_LABEL[a.role]}}</small></span><span v-if="!accountsOf(b.id).length" class="none">Chưa có tài khoản</span></div></div></template>
+<template v-if="accounts.length"><h2>Tài khoản hiện có</h2><div class="stack"><div v-for="b in state.data.branches" :key="b.id" class="surface acc" :style="{'--c':b.colorHex}"><strong><i></i>{{b.name}}</strong><span v-for="a in accountsOf(b.id)" :key="a.fullName+a.role" class="acc-row"><UserAvatar :role="a.role" :branch="b" :size="26"/>{{a.fullName}} <small :class="{sec:a.role==='BRANCH_SECRETARY'}">{{ROLE_LABEL[a.role]}}</small></span><span v-if="!accountsOf(b.id).length" class="none">Chưa có tài khoản</span></div></div></template>
 </div></template>
 <style scoped>.surface input,.surface select{width:100%;border:1px solid #dbe3ee;border-radius:11px;padding:10px;margin-top:8px;font-size:16px}.surface .primary-btn{width:100%;margin-top:10px}
 .roles{display:grid;grid-template-columns:1fr 1fr;gap:4px;background:#eef2f7;border-radius:12px;padding:3px}.roles button{border:0;background:transparent;border-radius:10px;padding:9px 6px;font-weight:800;font-size:.86rem;color:#64748b}.roles button.on{background:#fff;color:#0f172a;box-shadow:0 2px 8px rgba(15,23,42,.08)}
 .subtle{margin:10px 0 2px;font-size:.8rem;line-height:1.45}.warn{margin:8px 0 0;background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;border-radius:11px;padding:8px 10px;font-size:.8rem;line-height:1.4}
 .msg{margin-top:10px;font-weight:700;font-size:.86rem;color:#166534}.msg.err{color:#b91c1c}
-.acc{padding:11px 13px;display:grid;gap:4px;font-size:.84rem}.acc strong{display:flex;align-items:center;gap:7px}.acc i{width:9px;height:9px;border-radius:50%;background:var(--c)}.acc small{font-size:.7rem;font-weight:800;color:#1d4ed8;background:#eff6ff;border-radius:999px;padding:1px 7px;margin-left:4px}.acc small.sec{color:#166534;background:#f0fdf4}.acc .none{color:#94a3b8}</style>
+.acc{padding:11px 13px;display:grid;gap:4px;font-size:.84rem}.acc strong{display:flex;align-items:center;gap:7px}.acc i{width:9px;height:9px;border-radius:50%;background:var(--c)}.acc small{font-size:.7rem;font-weight:800;color:#1d4ed8;background:#eff6ff;border-radius:999px;padding:1px 7px;margin-left:4px}.acc small.sec{color:#166534;background:#f0fdf4}.acc .none{color:#94a3b8}.acc-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}</style>

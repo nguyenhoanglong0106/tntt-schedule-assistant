@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import BottomNav from '@/components/BottomNav.vue'
+import SparkleLayer from '@/components/SparkleLayer.vue'
 import { useApp } from '@/composables/useApp'
 import { useUpdateChecker } from '@/composables/useUpdateChecker'
 import { flushOutbox, outboxError, outboxIds } from '@/services/attendanceOutbox'
@@ -36,7 +37,7 @@ onMounted(()=>{
 })
 onBeforeUnmount(()=>{window.removeEventListener('online',goOnline);window.removeEventListener('offline',goOffline);document.removeEventListener('visibilitychange',onVisible);clearInterval(timer)})
 </script>
-<template><div class="app-shell">
+<template><div class="app-shell"><SparkleLayer/>
 <div v-if="outboxError" class="net-bar err"><span>⚠️ {{outboxError}}</span><button @click="outboxError=''">✕</button></div>
 <div v-else-if="outboxIds.length" class="net-bar wait"><span>⏳ {{outboxIds.length}} buổi điểm danh đang chờ gửi{{online?'':' · sẽ tự gửi khi có mạng'}}</span><button v-if="online" :disabled="sending" @click="sync">{{sending?'Đang gửi…':'Gửi ngay'}}</button></div>
 <div v-else-if="!online||state.offline" class="net-bar off"><span>📶 Đang mất mạng{{savedAt?` · dữ liệu lúc ${savedAt}`:''}}</span></div>

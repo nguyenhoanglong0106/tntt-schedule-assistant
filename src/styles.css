@@ -5,3 +5,6 @@
    the part of the screen the keyboard leaves visible, so pinned buttons stay reachable while typing. */
 .sheet-overlay{position:fixed;left:0;right:0;top:var(--kb-top,0px);bottom:var(--kb-bottom,0px);padding-top:calc(env(safe-area-inset-top) + 16px);background:rgba(15,23,42,.45);display:flex;align-items:flex-end;justify-content:center;z-index:100}
 .kb-open .sheet-overlay{padding-top:8px}
+
+/* Simple white and red background (the Đoàn's colours): white with a soft red tint from the top. Cards stay white. */
+.app-shell::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background:radial-gradient(50rem 20rem at 50% -10%,rgba(220,38,38,.13),transparent 70%),linear-gradient(180deg,#ffffff 0,#fff7f7 100%)}

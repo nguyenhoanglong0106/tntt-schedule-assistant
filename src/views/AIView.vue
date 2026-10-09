@@ -8,7 +8,9 @@ import type { PendingAction } from '@/types'
 import { startOfWeek, weekLabel, todayISO } from '@/utils/date'
 const {state,refresh,readOnly}=useApp();const {messages,reset,history}=useAiChat()
 const text=ref('');const busy=ref(false);const pending=ref<PendingAction|null>(null);const listening=ref(false);const copied=ref<number|null>(null);const chat=ref<HTMLElement|null>(null);const input=ref<HTMLTextAreaElement|null>(null)
-const scrollDown=(smooth=true)=>nextTick(()=>chat.value?.scrollTo({top:chat.value.scrollHeight,behavior:smooth?'smooth':'auto'}))
+// A new chat (only the greeting): the suggestions are laid out under it, from the top, instead of the scrolling row
+const fresh=computed(()=>messages.value.length===1&&!busy.value)
+const scrollDown=(smooth=true)=>nextTick(()=>chat.value?.scrollTo({top:fresh.value?0:chat.value.scrollHeight,behavior:smooth?'smooth':'auto'}))
 onMounted(async()=>{scrollDown(false);await refresh();scrollDown(false)})
 // The chat only renders once data has loaded, so also scroll when it first appears
 watch(chat,el=>{if(el)scrollDown(false)})
@@ -21,19 +23,28 @@ const lastOfGroup=(i:number)=>messages.value[i+1]?.from!==messages.value[i].from
 
 const suggestions=computed(()=>{
   const branch=state.profile&&state.profile.role!=='SUPER_ADMIN'?' của ngành mình':''
+  // Short labels; the question sent carries the detail
   return [
-    {label:'📋 Soạn tin tuần này',q:`Soạn tin nhắn lịch tuần này${branch} để gửi nhóm`},
-    // These use the attendance / meeting figures the app sends along (aiInsights.ts)
-    {label:'🏆 Ai siêng năng nhất?',q:`Tháng này ai siêng năng nhất${branch}? Soạn tin khen ngắn để gửi nhóm`},
-    {label:'🙋 Ai hay vắng?',q:`Năm học này ai vắng nhiều${branch}? Gợi ý cách hỏi han nhẹ nhàng`},
-    {lead:true,label:'📁 Việc cần làm sau họp',q:'Buổi họp gần nhất có những việc cần làm gì, ai phụ trách, hạn khi nào?'},
-    {label:'📊 Tổng kết tháng trước',q:'Tóm tắt chuyên cần tháng trước của từng ngành, ngành nào cần quan tâm?'},
-    {lead:true,label:'📋 Buổi chưa điểm danh',q:'Còn những buổi nào chưa điểm danh?'},
-    {label:'🍜 Ăn sáng CN này?',q:'Chủ nhật này ăn sáng món gì? Món nào đang dẫn, ngành nào chưa chọn món?'},
-    {lead:true,label:'⚖️ Gợi ý người vệ sinh',q:'Gợi ý người làm vệ sinh tuần sau cho công bằng'},
-    {label:'📖 Ai đọc sách?',q:'Tuần này ngành nào đọc sách, ai đọc ngày nào?'},
+    {label:'📅 Hôm nay có gì?',q:`Hôm nay có lịch gì${branch}? Ghi giờ và người phụ trách`},
+    {label:'📅 Lịch ngày mai',q:`Ngày mai có lịch gì${branch}? Ghi giờ và người phụ trách`},
+    {label:'🗓️ Lịch tuần sau',q:`Tuần sau có những lịch gì${branch}? Nhóm theo ngày, ghi giờ và người phụ trách`},
+    {label:'📖 Ai đọc sách?',q:'Tuần này và tuần sau ngành nào đọc sách, ai đọc ngày nào?'},
     {label:'🍦 Ai bán kem?',q:'Chủ nhật này ai bán kem, mấy giờ?'},
-  // Thư ký ngành cannot act on these (meetings, attendance, assigning people)
+    {label:'🧹 Ai làm vệ sinh?',q:`Tuần này ai làm vệ sinh${branch}, ngày nào, mấy giờ?`},
+    {label:'🏢 Ai trực văn phòng?',q:`Tuần này ai trực văn phòng${branch}, ngày nào, mấy giờ?`},
+    {label:'📋 Soạn tin tuần này',q:`Soạn tin nhắn lịch tuần này${branch} để gửi nhóm`},
+    {label:'📨 Soạn tin tuần sau',q:`Soạn tin nhắn lịch tuần sau${branch} để gửi nhóm`},
+    // These use the attendance / meeting / breakfast figures the app sends along (aiInsights.ts)
+    {label:'🏆 Ai siêng nhất?',q:`Tháng này ai siêng năng nhất${branch}? Soạn tin khen ngắn để gửi nhóm`},
+    {label:'🙋 Ai hay vắng?',q:`Năm học này ai vắng nhiều${branch}? Gợi ý cách hỏi han nhẹ nhàng`},
+    {label:'👥 Ai chưa có việc?',q:`Trong 60 ngày qua ai${branch} chưa được phân công việc nào?`},
+    {label:'📊 Tổng kết tháng',q:'Tóm tắt chuyên cần tháng trước của từng ngành, ngành nào cần quan tâm?'},
+    {label:'🍜 Ăn sáng CN?',q:'Chủ nhật này ăn sáng món gì? Món nào đang dẫn, ngành nào chưa chọn món?'},
+    {lead:true,label:'🔔 Nhắc chọn món',q:'Soạn tin nhắc các ngành chưa chọn món ăn sáng Chủ nhật này, ghi rõ hạn chót'},
+    {lead:true,label:'⚖️ Xếp người vệ sinh',q:'Gợi ý người làm vệ sinh tuần sau cho công bằng'},
+    {lead:true,label:'📋 Chưa điểm danh',q:'Còn những buổi nào chưa điểm danh?'},
+    {lead:true,label:'📁 Việc sau họp',q:'Buổi họp gần nhất có những việc cần làm gì, ai phụ trách, hạn khi nào?'},
+  // Thư ký ngành cannot act on these (breakfast nags, assigning people, attendance, meetings)
   ].filter(c=>!readOnly.value||!(c as {lead?:boolean}).lead)
 })
 
@@ -66,27 +77,30 @@ function newChat(){if(busy.value)return;pending.value=null;reset()}
 function mic(){const SR=(window as any).SpeechRecognition||(window as any).webkitSpeechRecognition;if(!SR){add({from:'ai',text:'Trình duyệt này chưa hỗ trợ nhập giọng nói. Bạn có thể nhập bằng bàn phím.'});return}const r=new SR();r.lang='vi-VN';r.interimResults=false;r.onstart=()=>listening.value=true;r.onend=()=>listening.value=false;r.onresult=(e:any)=>{text.value=e.results[0][0].transcript};r.start()}
 </script>
 <template><div class="ai-page" v-if="state.data&&state.profile">
-<header><div class="who"><img class="avatar big" src="/ai-avatar.svg" alt="AI"><div><h1>AI Phân công</h1><small><span class="dot"></span>{{busy?'Đang trả lời…':'Trợ lý TNTT · Tuần '+weekLabel(startOfWeek(todayISO()))}}</small></div></div><div class="head-actions"><div class="safety">✓ Luôn hỏi xác nhận</div><button v-if="messages.length>1" class="new-chat" @click="newChat">＋ Trò chuyện mới</button></div></header>
-<main ref="chat" class="chat"><div class="thread">
+<header><div class="who"><img class="avatar big" src="/ai-avatar.svg" alt="AI"><div><h1>Đoàn TNTT Đaminh Saviô (AI)</h1><small><span class="dot"></span>{{busy?'Đang trả lời…':'Trợ lý TNTT · Tuần '+weekLabel(startOfWeek(todayISO()))}}</small></div></div><div class="head-actions"><div class="safety">✓ Luôn hỏi xác nhận</div><button v-if="messages.length>1" class="new-chat" @click="newChat">＋ Trò chuyện mới</button></div></header>
+<main ref="chat" class="chat"><div class="thread" :class="{fresh}">
   <div v-for="(m,i) in messages" :key="i" class="msg" :class="[m.from,{last:lastOfGroup(i)}]">
     <img v-if="m.from==='ai'" class="avatar" :class="{hide:!lastOfGroup(i)}" src="/ai-avatar.svg" alt="">
     <div class="col"><div class="bubble" :class="{share:m.share}">{{i===0&&readOnly?'Chào bạn 👋 Hãy hỏi về lịch của ngành (ai đọc sách, ai bán kem…), hoặc nhờ tôi soạn tin nhắn gửi nhóm.':m.text}}<button v-if="m.share" class="copy" @click="copy(i,m.text)">{{copied===i?'✓ Đã sao chép':'📋 Sao chép'}}</button><button v-if="m.retry&&i===messages.length-1" class="retry" :disabled="busy" @click="retry(i)">🔄 Thử lại</button></div><small v-if="lastOfGroup(i)&&m.at" class="time">{{time(m.at)}}</small></div>
   </div>
+  <div v-if="fresh" class="starters"><button v-for="s in suggestions" :key="s.label" @click="send(s.q)">{{s.label}}</button></div>
   <div v-if="busy" class="msg ai last"><img class="avatar" src="/ai-avatar.svg" alt=""><div class="col"><div class="bubble typing"><i></i><i></i><i></i></div></div></div>
 </div></main>
-<footer><div class="suggestions"><button v-for="s in suggestions" :key="s.label" :disabled="busy" @click="send(s.q)">{{s.label}}</button></div><div class="composer"><button class="mic" :class="{on:listening}" @click="mic">🎤</button><textarea ref="input" v-model="text" rows="1" placeholder="Nhập tin nhắn…" @keydown.enter.exact.prevent="send()"></textarea><button class="send" :disabled="busy||!text.trim()" @click="send()">➤</button></div></footer>
+<footer><div v-if="!fresh" class="suggestions"><button v-for="s in suggestions" :key="s.label" :disabled="busy" @click="send(s.q)">{{s.label}}</button></div><div class="composer"><button class="mic" :class="{on:listening}" @click="mic">🎤</button><textarea ref="input" v-model="text" rows="1" placeholder="Nhập tin nhắn…" @keydown.enter.exact.prevent="send()"></textarea><button class="send" :disabled="busy||!text.trim()" @click="send()">➤</button></div></footer>
 <ConfirmActionSheet v-if="pending" :action="pending" @cancel="cancel" @confirm="confirm"/></div></template>
 <style scoped>
 .ai-page{flex:1;min-height:0;width:100%;max-width:760px;margin:0 auto;display:flex;flex-direction:column;background:#f1f5f9}
 .ai-page header{flex:none;padding:12px 14px;background:#fff;border-bottom:1px solid #e8edf4;display:flex;justify-content:space-between;align-items:center;gap:10px}
-.who{display:flex;align-items:center;gap:10px;min-width:0;flex:1}.who>div{min-width:0}.ai-page h1{font-size:1.08rem;margin:0;white-space:nowrap}.ai-page header small{color:#64748b;font-size:.74rem;display:flex;align-items:center;gap:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.who{display:flex;align-items:center;gap:10px;min-width:0;flex:1}.who>div{min-width:0}.ai-page h1{font-size:clamp(.95rem,4.2vw,1.08rem);line-height:1.25;margin:0}.ai-page header small{color:#64748b;font-size:.74rem;display:flex;align-items:center;gap:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .dot{width:7px;height:7px;border-radius:50%;background:#22c55e;flex:none}
 .head-actions{display:flex;flex-direction:column;align-items:flex-end;gap:5px;flex:none}
 /* Small phones: the confirm sheet already guarantees "luôn hỏi xác nhận", so drop the pill for room */
 @media(max-width:380px){.safety{display:none}.ai-page header{padding:10px 12px}.avatar.big{width:36px;height:36px}}.safety{font-size:.68rem;background:#ecfdf5;color:#047857;padding:5px 8px;border-radius:999px;font-weight:800;white-space:nowrap}.new-chat{border:1px solid #e2e8f0;background:#fff;color:#475569;border-radius:999px;padding:4px 9px;font-size:.68rem;font-weight:700;white-space:nowrap}
 .avatar{width:30px;height:30px;flex:none;border-radius:50%;align-self:flex-end;filter:drop-shadow(0 2px 4px rgba(15,23,42,.15))}.avatar.big{width:42px;height:42px;align-self:center}.avatar.hide{visibility:hidden}
 .chat{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:14px 12px 8px}
-.thread{min-height:100%;display:flex;flex-direction:column;justify-content:flex-end;gap:3px}
+.thread{min-height:100%;display:flex;flex-direction:column;justify-content:flex-end;gap:3px}.thread.fresh{justify-content:flex-start}
+.starters{display:flex;flex-wrap:wrap;gap:8px;padding:4px 0 10px 37px}.starters button{border:1px solid #dbe3ee;background:#fff;color:#1e293b;border-radius:999px;padding:9px 13px;font-size:.84rem;font-weight:700;text-align:left;line-height:1.25;box-shadow:0 1px 2px rgba(15,23,42,.06)}.starters button:active{background:#eff6ff;border-color:#93c5fd}
+@media(max-width:360px){.starters{padding-left:0}.starters button{font-size:.8rem;padding:8px 11px}}
 .msg{display:flex;gap:7px;max-width:86%}.msg.last{margin-bottom:9px}.msg.ai{align-self:flex-start}.msg.user{align-self:flex-end;justify-content:flex-end}
 .col{display:flex;flex-direction:column;min-width:0}.msg.user .col{align-items:flex-end}
 .bubble{padding:9px 13px;border-radius:18px;white-space:pre-line;line-height:1.42;overflow-wrap:anywhere;font-size:.93rem}

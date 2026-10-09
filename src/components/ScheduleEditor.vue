@@ -7,11 +7,15 @@ import { normalizeVi } from '@/utils/normalize'
 import TimeInput24 from '@/components/TimeInput24.vue'
 
 const props=defineProps<{data:AppData;profile:Profile;existing?:Schedule|null;hideReading?:boolean;weekCursor?:string;defaultTask?:{code:TaskCode;date:string}}>()
-const taskChoices=computed(()=>props.hideReading?props.data.taskTypes.filter(t=>t.code!=='READING'):props.data.taskTypes)
+// A schedule whose task type was removed later still opens: its own type stays a choice for it
+const types=computed(()=>{const e=props.existing;return e&&!props.data.taskTypes.some(t=>t.code===e.taskCode)?[...props.data.taskTypes,{id:e.taskTypeId,code:e.taskCode,name:e.taskName,icon:e.taskIcon}]:props.data.taskTypes})
+const taskChoices=computed(()=>props.hideReading?types.value.filter(t=>t.code!=='READING'):types.value)
+// Vệ sinh by default, unless Ban điều hành removed it
+const defaultCode=taskChoices.value.find(t=>t.code==='CLEANING')?.code??taskChoices.value[0]?.code??'CLEANING'
 type QuickSave={id?:string;taskTypeId:string;taskCode:TaskCode;taskName:string;taskIcon:string;branchId:string;date:string;startTime:string|null;assignees:Assignee[];reminders:number[]}
 const emit=defineEmits<{save:[QuickSave];cancel:[];delete:[]}>()
-const form=reactive({taskCode:props.existing?.taskCode??props.defaultTask?.code??('CLEANING' as TaskCode),branchId:props.existing?.branchId??props.profile.branchId??props.data.branches[0]?.id??'',date:props.existing?.date??props.defaultTask?.date??todayISO(),startTime:'06:00',selected:[] as string[],search:'',reminders:[180] as number[]})
-const task=computed(()=>props.data.taskTypes.find(t=>t.code===form.taskCode)!)
+const form=reactive({taskCode:props.existing?.taskCode??props.defaultTask?.code??(defaultCode as TaskCode),branchId:props.existing?.branchId??props.profile.branchId??props.data.branches[0]?.id??'',date:props.existing?.date??props.defaultTask?.date??todayISO(),startTime:'06:00',selected:[] as string[],search:'',reminders:[180] as number[]})
+const task=computed(()=>types.value.find(t=>t.code===form.taskCode)!)
 const readingBranch=computed(()=>readingBranchForDate(form.date,props.data.rotation,props.data.branches))
 const effectiveBranch=computed(()=>form.taskCode==='READING'?readingBranch.value?.id??form.branchId:form.branchId)
 const branchTimeConfig=computed(()=>props.data.taskTypeBranchTimes.find(x=>x.taskTypeId===task.value?.id&&x.branchId===effectiveBranch.value))

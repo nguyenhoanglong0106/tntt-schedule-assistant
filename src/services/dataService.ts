@@ -116,6 +116,19 @@ export async function saveTaskTypeBranchTime(taskTypeId:string,branchId:string,s
   }
   const {error}=await supabase.from('task_type_branch_times').upsert({task_type_id:taskTypeId,branch_id:branchId,start_time:startTime,fixed_day_of_week:fixedDayOfWeek},{onConflict:'task_type_id,branch_id'});if(error)throw error
 }
+export async function deleteTaskTypeBranchTime(taskTypeId:string,branchId:string):Promise<void>{
+  if(!isSupabaseConfigured||!supabase){const d=readDemo();d.taskTypeBranchTimes=d.taskTypeBranchTimes.filter(x=>!(x.taskTypeId===taskTypeId&&x.branchId===branchId));writeDemo(d);return}
+  const {error}=await supabase.from('task_type_branch_times').delete().eq('task_type_id',taskTypeId).eq('branch_id',branchId);if(error)throw error
+}
+export async function updateTaskType(id:string,name:string,icon:string):Promise<void>{
+  if(!isSupabaseConfigured||!supabase){const d=readDemo();const t=d.taskTypes.find(x=>x.id===id);if(t)Object.assign(t,{name,icon:icon||'📌'});writeDemo(d);return}
+  const {error}=await supabase.from('task_types').update({name,icon:icon||'📌'}).eq('id',id);if(error)throw error
+}
+/** Hidden rather than deleted, so schedules already made with it keep their name */
+export async function deactivateTaskType(id:string):Promise<void>{
+  if(!isSupabaseConfigured||!supabase){const d=readDemo();d.taskTypes=d.taskTypes.filter(x=>x.id!==id);writeDemo(d);return}
+  const {error}=await supabase.from('task_types').update({active:false}).eq('id',id);if(error)throw error
+}
 export async function createTaskType(name:string,icon:string):Promise<void>{
   const code=name.normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/đ/gi,'d').toUpperCase().replace(/[^A-Z0-9]+/g,'_').replace(/^_+|_+$/g,'')||'TASK'
   if(!isSupabaseConfigured||!supabase){

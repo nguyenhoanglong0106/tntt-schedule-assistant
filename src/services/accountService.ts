@@ -26,6 +26,7 @@ export function secretaryInvite(login: SecretaryLogin, branchName: string, appUr
     `👤 Tên đăng nhập: ${login.username}`,
     `🔑 Mật khẩu: ${login.password}`,
     '',
+    '📲 Cài app: mở link bằng Chrome hoặc Safari (không mở trong Zalo) → bấm "Cài app vào điện thoại" ở màn hình đăng nhập.',
     'Đăng nhập xong vào tab "Nhắc việc" → bật "Thông báo điện thoại" để nhận nhắc lịch của ngành.',
     'iPhone: mở link bằng Safari → Chia sẻ → "Thêm vào MH chính", rồi mở app từ màn hình chính để bật thông báo.',
     'Tài khoản chỉ để xem lịch, không sửa được gì.',

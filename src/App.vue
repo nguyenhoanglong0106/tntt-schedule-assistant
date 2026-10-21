@@ -2,13 +2,17 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import BottomNav from '@/components/BottomNav.vue'
+import InstallAppSheet from '@/components/InstallAppSheet.vue'
 import SparkleLayer from '@/components/SparkleLayer.vue'
 import { useApp } from '@/composables/useApp'
+import { useInstallApp, wantsInstall } from '@/composables/useInstallApp'
 import { useUpdateChecker } from '@/composables/useUpdateChecker'
 import { flushOutbox, outboxError, outboxIds } from '@/services/attendanceOutbox'
 const route=useRoute();const{state,refresh}=useApp();const showNav=computed(()=>route.meta.hideNav!==true)
 const{updateAvailable,updating,updateError,checkUpdate,applyUpdate}=useUpdateChecker()
 const cancelUpdate=ref(false)
+// Opened from the install QR code (?install): show how to install on whatever page the visit lands
+const{installed}=useInstallApp();const closeInstall=()=>{wantsInstall.value=false}
 async function handleUpdate(){
   const ok=await applyUpdate()
   if(!ok)cancelUpdate.value=true
@@ -54,5 +58,6 @@ onBeforeUnmount(()=>{window.removeEventListener('online',goOnline);window.remove
   <button class="update-btn" @click.stop="retryUpdate">Thử lại</button>
   <button class="update-btn update-cancel" @click.stop="cancelUpdate=false">Hủy</button>
 </div>
+<InstallAppSheet v-if="wantsInstall&&!installed" @close="closeInstall"/>
 </div></template>
 <style scoped>.app-shell main{flex:1}.net-bar{flex:none;display:flex;align-items:center;justify-content:space-between;gap:8px;margin:6px 10px 0;padding:7px 10px;border-radius:12px;font-size:.78rem;font-weight:800;line-height:1.3}.net-bar button{flex:none;border:0;border-radius:999px;padding:5px 11px;font-weight:800;font-size:.75rem;background:#fff}.net-bar button:disabled{opacity:.6}.net-bar.wait{background:#fff7ed;color:#9a3412;border:1px solid #fed7aa}.net-bar.wait button{background:#ea580c;color:#fff}.net-bar.off{background:#f1f5f9;color:#475569;border:1px solid #e2e8f0}.net-bar.err{background:#fef2f2;color:#b91c1c;border:1px solid #fecaca}.update-banner{position:fixed;bottom:calc(78px + env(safe-area-inset-bottom));max-width:calc(100vw - 24px);left:50%;transform:translateX(-50%);background:#1d4ed8;color:#fff;padding:12px 20px;border-radius:14px;display:flex;align-items:center;gap:12px;box-shadow:0 8px 24px rgba(29,78,216,.3);z-index:999;cursor:pointer;font-size:.85rem}.update-btn{background:#fff;color:#1d4ed8;border:0;border-radius:999px;padding:6px 14px;font-weight:800;font-size:.8rem;cursor:pointer}.update-loading{background:#64748b;cursor:default}.update-error{background:#dc2626;cursor:default}.update-cancel{background:rgba(255,255,255,.2);color:#fff}</style>

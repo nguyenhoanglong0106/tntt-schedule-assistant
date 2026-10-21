@@ -2,7 +2,9 @@ import { createApp } from 'vue'
 import App from './App.vue'
 import router from './router'
 import { reloadForNewVersion } from './composables/useUpdateChecker'
+import { listenForInstallPrompt } from './composables/useInstallApp'
 import './styles.css'
+listenForInstallPrompt()
 // After a deploy the old build's lazy chunks are gone, so an app opened before it fails to load the
 // next page; load the new version instead (at the page the user was heading to)
 let heading = location.pathname + location.search
@@ -12,6 +14,8 @@ router.onError((err, to) => {
   if (/dynamically imported module|Importing a module script failed|Failed to fetch/i.test(String(err?.message ?? err))) reloadForNewVersion(to.fullPath)
 })
 createApp(App).use(router).mount('#app')
+// The install QR adds ?install; drop it once read so a reload or a saved home-screen link doesn't reopen the steps
+router.isReady().then(()=>{const{install,...query}=router.currentRoute.value.query;if(install!==undefined)router.replace({query})})
 if('serviceWorker' in navigator) window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(()=>undefined))
 // iPhone keyboard: it covers the bottom of the screen without resizing fixed elements, hiding a sheet's Save button.
 // While it is open, expose the visible band so .sheet-overlay sits above it. Only a large gap counts as the keyboard:

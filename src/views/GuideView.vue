@@ -80,7 +80,7 @@ const tips=computed(():Tip[]=>{
 })
 
 type Section={icon:string;title:string;steps:string[];note?:string}
-const IPHONE='<b>iPhone:</b> mở web bằng Safari → Chia sẻ → <b>Thêm vào MH chính</b> → mở app từ biểu tượng đó rồi mới bật thông báo (iOS 16.4 trở lên).<br>Mỗi máy chỉ nhận thông báo của <b>tài khoản bật thông báo gần nhất</b> trên máy đó; đăng xuất là máy thôi nhận.'
+const IPHONE='<b>iPhone:</b> mở web bằng Safari → Chia sẻ → <b>Thêm vào MH chính</b> (xem từng bước ở <b>Cá nhân → 📲 Cài app vào điện thoại</b>) → mở app từ biểu tượng đó rồi mới bật thông báo (iOS 16.4 trở lên).<br>Mỗi máy chỉ nhận thông báo của <b>tài khoản bật thông báo gần nhất</b> trên máy đó; đăng xuất là máy thôi nhận.'
 const AI_SECTION:Section={icon:'✨',title:'Hỏi AI',steps:[
   'Bấm <b>✨ AI</b> giữa thanh dưới, chọn một <b>gợi ý nhanh</b> hoặc gõ câu tự nhiên (<i>“Chủ nhật này ai bán kem?”</i>).',
   'AI trả lời lịch, siêng năng, ăn sáng và <b>soạn tin</b> để bấm 📋 Sao chép gửi Zalo.',
@@ -117,7 +117,8 @@ const GUIDES:Record<Role,{label:string;summary:string;sections:Section[]}>={
   BRANCH_ADMIN:{label:'Trưởng ngành',summary:'🔑 Tạo / sửa lịch và điểm danh ngành mình, chọn món ăn sáng; xem lịch mọi ngành và tài liệu họp.',sections:[
     {icon:'🚀',title:'Bắt đầu',steps:[
       '<b>Nhắc việc</b> → bật <b>Thông báo điện thoại</b>.',
-      'Gửi tài khoản thư ký cho thành viên: mục <b>👀 Tài khoản thư ký ngành</b> phía trên → <b>📋 Sao chép tin gửi thành viên</b> → dán vào nhóm Zalo ngành.'],note:IPHONE},
+      'Gửi tài khoản thư ký cho thành viên: mục <b>👀 Tài khoản thư ký ngành</b> phía trên → <b>📋 Sao chép tin gửi thành viên</b> → dán vào nhóm Zalo ngành.',
+      'Giúp thành viên cài app: <b>Cá nhân → 🔳 Mã QR tải app cho thành viên</b> → cho thành viên quét bằng Camera, hoặc bấm <b>📤 Gửi ảnh QR</b> vào nhóm Zalo.'],note:IPHONE},
     {icon:'🗓️',title:'Lịch công tác & đọc sách',steps:[
       '<b>Công tác → ＋ Tạo lịch</b>: giờ điền sẵn, chọn người hoặc lớp (không chọn = cả ngành), chọn mốc nhắc.',
       'Bấm vào lịch để <b>sửa / xóa</b>; <b>📋 Sao chép lịch tuần trước</b> cho nhanh.',

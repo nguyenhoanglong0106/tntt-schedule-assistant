@@ -54,10 +54,17 @@ Deno.serve(async (req) => {
       parts.push({ text: `Tệp đính kèm "${name}":` }, { inlineData: { mimeType: mime, data: encodeBase64(bytes) } })
     }
 
-    const r = await generate({ system: SYSTEM, parts, json: true })
-    if (!r.ok) return json({ error: r.message, retry: true }, 502)
+    // A model occasionally wraps the JSON in prose or code fences; take the outermost {...} and ask once more if it still won't parse
     let parsed: any
-    try { parsed = JSON.parse(r.text.replace(/^```(?:json)?\s*|\s*```$/g, '')) } catch { return json({ error: 'AI trả về nội dung không đọc được, thử lại nhé.', retry: true }, 502) }
+    for (let tries = 1; !parsed; tries++) {
+      const r = await generate({ system: SYSTEM, parts, json: true })
+      if (!r.ok) return json({ error: r.message, retry: true }, 502)
+      const start = r.text.indexOf('{'); const end = r.text.lastIndexOf('}')
+      try { parsed = JSON.parse(r.text.slice(start, end + 1)) } catch {
+        console.error('[summarize-meeting] unparsable', r.text.slice(0, 300))
+        if (tries >= 2) return json({ error: 'AI trả về nội dung không đọc được, thử lại nhé.', retry: true }, 502)
+      }
+    }
     const summary = {
       points: (Array.isArray(parsed?.points) ? parsed.points : []).map((p: unknown) => String(p).trim()).filter(Boolean).slice(0, 10),
       actions: (Array.isArray(parsed?.actions) ? parsed.actions : []).map((a: any) => ({ task: String(a?.task ?? '').trim(), owner: String(a?.owner ?? '').trim(), due: String(a?.due ?? '').trim() })).filter((a: any) => a.task).slice(0, 15),
